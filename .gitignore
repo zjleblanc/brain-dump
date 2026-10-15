@@ -1,0 +1,29 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+*.resolved
+
+# Xcode (if ever generated)
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.icloud
+
+# App bundle output from scripts/bundle.sh
+*.app
+*.dmg
+*.zip
+
+# Editor / OS
+.idea/
+*.swp
+*.swo
+*~
