@@ -1,0 +1,32 @@
+repos:
+  # Secret scanning
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Swift linting
+  # DYLD_FRAMEWORK_PATH makes SwiftLint's SourceKit load from the Command Line
+  # Tools when Xcode.app is not installed.
+  - repo: local
+    hooks:
+      - id: swiftlint
+        name: SwiftLint
+        language: system
+        entry: env DYLD_FRAMEWORK_PATH=/Library/Developer/CommandLineTools/usr/lib
+          swiftlint lint --strict --config .swiftlint.yml
+        types: [swift]
+        pass_filenames: false

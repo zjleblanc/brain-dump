@@ -6,10 +6,11 @@ struct ListSidebarView: View {
 
     final class ViewState: ObservableObject {
         @Published var showingAddList = false
-        @Published var editingList: TodoList? = nil
+        @Published var editingList: TodoList?
         @Published var newListName = ""
-        @Published var newListColorHex: String? = nil
+        @Published var newListColorHex: String?
     }
+
     @StateObject private var vs = ViewState()
 
     var body: some View {
@@ -74,6 +75,7 @@ struct ListSidebarView: View {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func listRow(
         label: String,
         systemIcon: String,
@@ -157,8 +159,10 @@ struct ListEditSheetCopy: View {
 
     final class ViewState: ObservableObject {
         @Published var draft: TodoList
+
         init(list: TodoList) { draft = list }
     }
+
     @StateObject private var vs: ViewState
 
     var onSave: (TodoList) -> Void

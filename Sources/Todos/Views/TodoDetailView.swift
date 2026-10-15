@@ -9,13 +9,14 @@ struct TodoDetailView: View {
         @Published var hasDueDate: Bool
         @Published var showingAddTag = false
         @Published var newTagName = ""
-        @Published var newTagColorHex: String? = nil
+        @Published var newTagColorHex: String?
 
         init(item: TodoItem) {
             draft = item
             hasDueDate = item.dueDate != nil
         }
     }
+
     @StateObject private var vs: ViewState
 
     var onSave: (TodoItem) -> Void

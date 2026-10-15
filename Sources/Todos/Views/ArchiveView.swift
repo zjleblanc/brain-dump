@@ -5,8 +5,9 @@ struct ArchiveView: View {
 
     final class ViewState: ObservableObject {
         @Published var searchText = ""
-        @Published var selectedItem: TodoItem? = nil
+        @Published var selectedItem: TodoItem?
     }
+
     @StateObject private var vs = ViewState()
 
     private var archivedItems: [TodoItem] {
@@ -17,10 +18,10 @@ struct ArchiveView: View {
 
     private var filtered: [TodoItem] {
         guard !vs.searchText.isEmpty else { return archivedItems }
-        let q = vs.searchText.lowercased()
+        let query = vs.searchText.lowercased()
         return archivedItems.filter {
-            $0.title.lowercased().contains(q) ||
-            $0.notes.lowercased().contains(q)
+            $0.title.lowercased().contains(query) ||
+            $0.notes.lowercased().contains(query)
         }
     }
 

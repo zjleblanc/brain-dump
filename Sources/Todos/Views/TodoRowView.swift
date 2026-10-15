@@ -14,11 +14,11 @@ struct TodoRowView: View {
     }
 
     private static let dueDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.doesRelativeDateFormatting = true
-        f.dateStyle = .short
-        f.timeStyle = .none
-        return f
+        let formatter = DateFormatter()
+        formatter.doesRelativeDateFormatting = true
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        return formatter
     }()
 
     var body: some View {
@@ -125,6 +125,7 @@ struct HoverActions<Content: View>: View {
     final class ViewState: ObservableObject {
         @Published var isHovered = false
     }
+
     @StateObject private var vs = ViewState()
     let content: () -> Content
 

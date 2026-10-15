@@ -1,0 +1,21 @@
+# Gitleaks configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "Todos gitleaks config"
+
+[extend]
+# Use the default gitleaks ruleset as the base
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+    # SPM build artifacts are gitignored but scan them just in case
+    '''.build/''',
+]
+
+# Regexes for strings that look like secrets but aren't in this codebase
+regexes = [
+    # Hex color codes in source (e.g. "#FF453A")
+    '''#[0-9A-Fa-f]{6}''',
+]

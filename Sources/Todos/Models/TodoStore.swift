@@ -24,7 +24,7 @@ final class TodoStore: ObservableObject {
     private static var dataURL: URL {
         let support = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
+        ).first! // swiftlint:disable:this force_unwrapping
         let dir = support.appendingPathComponent("Todos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("data.json")
@@ -120,9 +120,9 @@ final class TodoStore: ObservableObject {
     // MARK: - Lists
 
     func add(_ list: TodoList) {
-        var l = list
-        l.sortOrder = lists.count
-        lists.append(l)
+        var newList = list
+        newList.sortOrder = lists.count
+        lists.append(newList)
         save()
     }
 

@@ -11,6 +11,10 @@
 
 set -euo pipefail
 
+# Fix SwiftBuild framework search paths for Command Line Tools installs
+# (prevents "search path not found" linker warnings when Xcode.app is absent).
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+
 BUILD_CONFIG="${1:-debug}"
 SIGN_IDENTITY="${3:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

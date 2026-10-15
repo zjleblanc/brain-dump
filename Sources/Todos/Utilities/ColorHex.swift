@@ -4,16 +4,16 @@ import SwiftUI
 
 struct AppPalette {
     static let colors: [(name: String, hex: String)] = [
-        ("Red",    "#FF453A"),
+        ("Red", "#FF453A"),
         ("Orange", "#FF9F0A"),
         ("Yellow", "#FFD60A"),
-        ("Green",  "#30D158"),
-        ("Teal",   "#40C8E0"),
-        ("Blue",   "#0A84FF"),
+        ("Green", "#30D158"),
+        ("Teal", "#40C8E0"),
+        ("Blue", "#0A84FF"),
         ("Indigo", "#5E5CE6"),
         ("Purple", "#BF5AF2"),
-        ("Pink",   "#FF375F"),
-        ("Gray",   "#8E8E93"),
+        ("Pink", "#FF375F"),
+        ("Gray", "#8E8E93")
     ]
 }
 
@@ -21,25 +21,25 @@ struct AppPalette {
 
 extension Color {
     init?(hex: String) {
-        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        if s.hasPrefix("#") { s.removeFirst() }
-        let len = s.count
+        var hexStr = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hexStr.hasPrefix("#") { hexStr.removeFirst() }
+        let len = hexStr.count
         guard len == 6 || len == 8 else { return nil }
         var value: UInt64 = 0
-        guard Scanner(string: s).scanHexInt64(&value) else { return nil }
-        let r, g, b, a: Double
+        guard Scanner(string: hexStr).scanHexInt64(&value) else { return nil }
+        let red, green, blue, alpha: Double
         if len == 6 {
-            r = Double((value >> 16) & 0xFF) / 255
-            g = Double((value >>  8) & 0xFF) / 255
-            b = Double((value      ) & 0xFF) / 255
-            a = 1.0
+            red   = Double((value >> 16) & 0xFF) / 255
+            green = Double((value >> 8) & 0xFF) / 255
+            blue  = Double(value & 0xFF) / 255
+            alpha = 1.0
         } else {
-            r = Double((value >> 24) & 0xFF) / 255
-            g = Double((value >> 16) & 0xFF) / 255
-            b = Double((value >>  8) & 0xFF) / 255
-            a = Double((value      ) & 0xFF) / 255
+            red   = Double((value >> 24) & 0xFF) / 255
+            green = Double((value >> 16) & 0xFF) / 255
+            blue  = Double((value >> 8) & 0xFF) / 255
+            alpha = Double(value & 0xFF) / 255
         }
-        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
+        self.init(.sRGB, red: red, green: green, blue: blue, opacity: alpha)
     }
 }
 

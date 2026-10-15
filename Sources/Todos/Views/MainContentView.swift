@@ -4,12 +4,13 @@ struct MainContentView: View {
     @EnvironmentObject private var store: TodoStore
 
     final class ViewState: ObservableObject {
-        @Published var selectedListID: UUID? = nil
+        @Published var selectedListID: UUID?
         @Published var searchText: String = ""
         @Published var newTodoTitle: String = ""
         @Published var showingArchive: Bool = false
-        @Published var selectedItem: TodoItem? = nil
+        @Published var selectedItem: TodoItem?
     }
+
     @StateObject private var vs = ViewState()
     @FocusState private var quickAddFocused: Bool
 
@@ -142,17 +143,17 @@ struct TodoListPane: View {
             result = result.filter { $0.listID == id }
         }
         if !searchText.isEmpty {
-            let q = searchText.lowercased()
+            let query = searchText.lowercased()
             result = result.filter {
-                $0.title.lowercased().contains(q) ||
-                $0.notes.lowercased().contains(q) ||
-                store.tags(for: $0).contains(where: { $0.name.lowercased().contains(q) })
+                $0.title.lowercased().contains(query) ||
+                $0.notes.lowercased().contains(query) ||
+                store.tags(for: $0).contains(where: { $0.name.lowercased().contains(query) })
             }
         }
         return result.sorted { $0.createdAt > $1.createdAt }
     }
 
-    private var active: [TodoItem]    { filtered.filter { !$0.isCompleted } }
+    private var active: [TodoItem] { filtered.filter { !$0.isCompleted } }
     private var completed: [TodoItem] { filtered.filter { $0.isCompleted } }
 
     var body: some View {
