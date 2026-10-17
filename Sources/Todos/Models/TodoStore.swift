@@ -189,10 +189,17 @@ final class TodoStore: ObservableObject {
         }
     }
 
+    /// Count of todos that belong to `list` (active, completed, cleared, or
+    /// archived) — used to summarize what a list deletion will also remove.
+    func itemCount(in list: TodoList) -> Int {
+        items.filter { $0.listID == list.id }.count
+    }
+
+    /// Deletes a list and every todo assigned to it. Callers should confirm with the
+    /// user first (see `ListDeleteConfirmationView`) since this permanently removes
+    /// the list's items rather than just unassigning them.
     func delete(_ list: TodoList) {
-        for idx in items.indices where items[idx].listID == list.id {
-            items[idx].listID = nil
-        }
+        items.removeAll { $0.listID == list.id }
         lists.removeAll { $0.id == list.id }
         save()
     }

@@ -30,8 +30,8 @@ struct SpectrumColorPickerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Quick presets
-            HStack(spacing: 6) {
+            // Quick presets — wraps instead of overflowing in narrower columns
+            FlowLayout(spacing: 6) {
                 Button {
                     selectedHex = nil
                 } label: {

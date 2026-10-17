@@ -17,6 +17,7 @@ struct MainContentView: View {
         @Published var showingAddForm: Bool = false
         @Published var showingSettings: Bool = false
         @Published var showCompleted: Bool = false
+        @Published var confirmingDeleteList: TodoList?
     }
 
     @StateObject private var vs = ViewState()
@@ -40,7 +41,8 @@ struct MainContentView: View {
                     newListName: $vs.newListName,
                     newListColorHex: $vs.newListColorHex,
                     newListEmoji: $vs.newListEmoji,
-                    showingArchive: $vs.showingArchive
+                    showingArchive: $vs.showingArchive,
+                    confirmingDeleteList: $vs.confirmingDeleteList
                 )
                 .frame(width: 140)
                 .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
@@ -160,7 +162,13 @@ struct MainContentView: View {
                         ListEditSheetCopy(
                             list: list,
                             onSave: { updated in store.update(updated) },
-                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } }
+                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
+                            onRequestDelete: {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    vs.editingList = nil
+                                    vs.confirmingDeleteList = list
+                                }
+                            }
                         )
                     }
                 )
@@ -188,6 +196,26 @@ struct MainContentView: View {
                         SettingsView(onDismiss: {
                             withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false }
                         })
+                        .environmentObject(store)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            } else if let list = vs.confirmingDeleteList {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } },
+                    content: {
+                        ListDeleteConfirmationView(
+                            list: list,
+                            onConfirm: {
+                                if vs.selectedListID == list.id { vs.selectedListID = nil }
+                                store.delete(list)
+                                withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil }
+                            },
+                            onCancel: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } }
+                        )
                         .environmentObject(store)
                     }
                 )
@@ -359,7 +387,7 @@ struct TodoListPane: View {
                 .foregroundStyle(.secondary)
             Text(searchText.isEmpty ? "All done!" : "No results")
                 .font(.headline).foregroundStyle(.secondary)
-            Text(searchText.isEmpty ? "Add a new todo below." : "Try a different search term.")
+            Text(searchText.isEmpty ? "+ Add a new todo" : "Try a different search term.")
                 .font(.caption).foregroundStyle(.tertiary)
             Spacer()
         }
