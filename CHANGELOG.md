@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-16 — Slide-up panels, improved add-todo flow, and row layout fixes
+
+### Added
+- `ModalOverlay.swift` — new `BottomSheetContainer` that anchors content at the bottom of the panel, slides in from below with a spring transition, and rounds only the top corners; tap the backdrop to dismiss
+- `AddTodoSheet` (in `MainContentView.swift`) — full creation form (title, notes, list, due date, color) that auto-focuses the title field; replaces the old type-title-then-open-edit-modal flow
+
+### Changed
+- Quick-add bar replaced with a single tappable row that opens `AddTodoSheet` via a bottom-sheet slide; removed the inline `TextField`
+- All modal overlays in `MainContentView`, `TodoDetailView`, and `ArchiveView` converted from `ModalOverlayContainer` (centred popover) to `BottomSheetContainer`; state mutations wrapped in `withAnimation(.spring(duration: 0.3))`
+- `TodoDetailView`, `ListEditSheet`, `ListEditSheetCopy`, and `TagEditSheet` now accept explicit `onDismiss` closures instead of relying on `@Environment(\.dismiss)`, enabling the new overlay model
+- `ListSidebarView` sheet state lifted to `MainContentView` so all overlay logic lives in one place
+- `TodoRowView` — `HStack` alignment changed from `.top` to `.center`; removed top-padding nudges on checkbox and color bar; title `VStack` given `.frame(maxWidth: .infinity)` so text fills available width; padding increased to 12 pt horizontal, 6 pt vertical
+- `ListSidebarView` icon/circle container — both the colored dot and the fallback system icon now sit in a fixed `16×16` frame for consistent vertical alignment with the label
+
+### Fixed
+- Checkbox circle was top-anchored instead of vertically centered in each row
+- Todo title text was not expanding to fill the right side of the row
+- Sidebar list icons and color dots were misaligned relative to label text
+
 ## 2026-10-15 — Initial implementation of macOS menubar todo app
 
 ### Added

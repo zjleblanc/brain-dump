@@ -3,15 +3,10 @@ import SwiftUI
 struct ListSidebarView: View {
     @EnvironmentObject private var store: TodoStore
     @Binding var selectedListID: UUID?
-
-    final class ViewState: ObservableObject {
-        @Published var showingAddList = false
-        @Published var editingList: TodoList?
-        @Published var newListName = ""
-        @Published var newListColorHex: String?
-    }
-
-    @StateObject private var vs = ViewState()
+    @Binding var showingAddList: Bool
+    @Binding var editingList: TodoList?
+    @Binding var newListName: String
+    @Binding var newListColorHex: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -34,7 +29,7 @@ struct ListSidebarView: View {
                     isSelected: selectedListID == list.id
                 ) { selectedListID = list.id }
                 .contextMenu {
-                    Button("Edit") { vs.editingList = list }
+                    Button("Edit") { withAnimation(.spring(duration: 0.3)) { editingList = list } }
                     Divider()
                     Button("Delete", role: .destructive) {
                         if selectedListID == list.id { selectedListID = nil }
@@ -46,9 +41,9 @@ struct ListSidebarView: View {
             Divider().padding(.vertical, 2)
 
             Button {
-                vs.newListName = ""
-                vs.newListColorHex = nil
-                vs.showingAddList = true
+                newListName = ""
+                newListColorHex = nil
+                withAnimation(.spring(duration: 0.3)) { showingAddList = true }
             } label: {
                 Label("New List", systemImage: "plus")
                     .font(.system(size: 12))
@@ -59,20 +54,6 @@ struct ListSidebarView: View {
             .padding(.vertical, 4)
         }
         .padding(.vertical, 6)
-        .sheet(isPresented: $vs.showingAddList) {
-            ListEditSheet(
-                name: $vs.newListName,
-                colorHex: $vs.newListColorHex,
-                title: "New List"
-            ) {
-                store.add(TodoList(name: vs.newListName, colorHex: vs.newListColorHex))
-            }
-        }
-        .sheet(item: $vs.editingList) { list in
-            ListEditSheetCopy(list: list) { updated in
-                store.update(updated)
-            }
-        }
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -87,12 +68,15 @@ struct ListSidebarView: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if let hex = colorHex, let color = Color(hex: hex) {
-                    Circle().fill(color).frame(width: 8, height: 8)
+                    Circle()
+                        .fill(color)
+                        .frame(width: 8, height: 8)
+                        .frame(width: 16, height: 16)
                 } else {
                     Image(systemName: systemIcon)
                         .font(.system(size: 11))
                         .foregroundStyle(isSelected ? .white : .secondary)
-                        .frame(width: 8)
+                        .frame(width: 16, height: 16)
                 }
                 Text(label)
                     .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
@@ -122,11 +106,11 @@ struct ListSidebarView: View {
 // MARK: - New list sheet
 
 struct ListEditSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Binding var name: String
     @Binding var colorHex: String?
     var title: String
     var onSave: () -> Void
+    var onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -136,7 +120,7 @@ struct ListEditSheet: View {
                 .onSubmit { save() }
             PalettePickerView(selectedHex: $colorHex)
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("Save") { save() }.keyboardShortcut(.defaultAction).disabled(name.isEmpty)
             }
@@ -148,15 +132,13 @@ struct ListEditSheet: View {
     private func save() {
         guard !name.isEmpty else { return }
         onSave()
-        dismiss()
+        onDismiss()
     }
 }
 
 // MARK: - Edit existing list sheet
 
 struct ListEditSheetCopy: View {
-    @Environment(\.dismiss) private var dismiss
-
     final class ViewState: ObservableObject {
         @Published var draft: TodoList
 
@@ -166,10 +148,12 @@ struct ListEditSheetCopy: View {
     @StateObject private var vs: ViewState
 
     var onSave: (TodoList) -> Void
+    var onDismiss: () -> Void
 
-    init(list: TodoList, onSave: @escaping (TodoList) -> Void) {
+    init(list: TodoList, onSave: @escaping (TodoList) -> Void, onDismiss: @escaping () -> Void) {
         _vs = StateObject(wrappedValue: ViewState(list: list))
         self.onSave = onSave
+        self.onDismiss = onDismiss
     }
 
     var body: some View {
@@ -179,10 +163,11 @@ struct ListEditSheetCopy: View {
                 .textFieldStyle(.roundedBorder)
             PalettePickerView(selectedHex: $vs.draft.colorHex)
             HStack {
+                Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("Done") {
                     onSave(vs.draft)
-                    dismiss()
+                    onDismiss()
                 }
                 .keyboardShortcut(.defaultAction)
             }

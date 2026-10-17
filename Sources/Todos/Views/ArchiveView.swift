@@ -9,6 +9,7 @@ struct ArchiveView: View {
     }
 
     @StateObject private var vs = ViewState()
+    var onDismiss: () -> Void
 
     private var archivedItems: [TodoItem] {
         store.items
@@ -38,6 +39,8 @@ struct ArchiveView: View {
                     .foregroundStyle(.red)
                     .buttonStyle(.plain)
                 }
+                Button("Done") { onDismiss() }
+                    .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -63,11 +66,20 @@ struct ArchiveView: View {
                 }
             }
         }
-        .sheet(item: $vs.selectedItem) { item in
-            TodoDetailView(item: item) { updated in
-                store.update(updated)
+        .overlay {
+            if let item = vs.selectedItem {
+                ModalOverlayContainer(
+                    onEscape: { vs.selectedItem = nil },
+                    content: {
+                        TodoDetailView(
+                            item: item,
+                            onSave: { updated in store.update(updated) },
+                            onDismiss: { vs.selectedItem = nil }
+                        )
+                        .environmentObject(store)
+                    }
+                )
             }
-            .environmentObject(store)
         }
     }
 

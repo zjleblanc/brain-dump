@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct TodoDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: TodoStore
 
     final class ViewState: ObservableObject {
@@ -20,10 +19,12 @@ struct TodoDetailView: View {
     @StateObject private var vs: ViewState
 
     var onSave: (TodoItem) -> Void
+    var onDismiss: () -> Void
 
-    init(item: TodoItem, onSave: @escaping (TodoItem) -> Void) {
+    init(item: TodoItem, onSave: @escaping (TodoItem) -> Void, onDismiss: @escaping () -> Void) {
         _vs = StateObject(wrappedValue: ViewState(item: item))
         self.onSave = onSave
+        self.onDismiss = onDismiss
     }
 
     private var draftTags: [Tag] {
@@ -98,7 +99,7 @@ struct TodoDetailView: View {
                         Button {
                             vs.newTagName = ""
                             vs.newTagColorHex = nil
-                            vs.showingAddTag = true
+                            withAnimation(.spring(duration: 0.3)) { vs.showingAddTag = true }
                         } label: {
                             Image(systemName: "plus.circle").font(.system(size: 13))
                         }
@@ -135,7 +136,7 @@ struct TodoDetailView: View {
 
                 Button("Delete Todo", role: .destructive) {
                     store.delete(vs.draft)
-                    dismiss()
+                    onDismiss()
                 }
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity)
@@ -153,18 +154,36 @@ struct TodoDetailView: View {
             .padding(.vertical, 12)
             .background(.regularMaterial)
         }
-        .sheet(isPresented: $vs.showingAddTag) {
-            TagEditSheet(name: $vs.newTagName, colorHex: $vs.newTagColorHex) {
-                let tag = Tag(name: vs.newTagName, colorHex: vs.newTagColorHex)
-                store.add(tag)
-                vs.draft.tagIDs.append(tag.id)
+        .overlay {
+            if vs.showingAddTag {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingAddTag = false } },
+                    content: {
+                        TagEditSheet(
+                            name: $vs.newTagName,
+                            colorHex: $vs.newTagColorHex,
+                            onSave: {
+                                let tag = Tag(name: vs.newTagName, colorHex: vs.newTagColorHex)
+                                store.add(tag)
+                                vs.draft.tagIDs.append(tag.id)
+                            },
+                            onDismiss: {
+                                withAnimation(.spring(duration: 0.3)) { vs.showingAddTag = false }
+                            }
+                        )
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
             }
         }
     }
 
     private func save() {
         onSave(vs.draft)
-        dismiss()
+        onDismiss()
     }
 
     @ViewBuilder
@@ -182,10 +201,10 @@ struct TodoDetailView: View {
 // MARK: - Tag edit sheet
 
 struct TagEditSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Binding var name: String
     @Binding var colorHex: String?
     var onSave: () -> Void
+    var onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -195,7 +214,7 @@ struct TagEditSheet: View {
                 .onSubmit { save() }
             PalettePickerView(selectedHex: $colorHex)
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("Add") { save() }.keyboardShortcut(.defaultAction).disabled(name.isEmpty)
             }
@@ -207,7 +226,7 @@ struct TagEditSheet: View {
     private func save() {
         guard !name.isEmpty else { return }
         onSave()
-        dismiss()
+        onDismiss()
     }
 }
 

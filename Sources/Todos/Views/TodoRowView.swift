@@ -22,13 +22,12 @@ struct TodoRowView: View {
     }()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .center, spacing: 10) {
             // Left color accent bar
             if let hex = item.colorHex, let color = Color(hex: hex) {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(color)
-                    .frame(width: 3, height: 36)
-                    .padding(.top, 2)
+                    .frame(width: 3, height: 32)
             }
 
             // Checkbox
@@ -43,7 +42,6 @@ struct TodoRowView: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
-            .padding(.top, 1)
 
             // Title + meta
             VStack(alignment: .leading, spacing: 3) {
@@ -73,8 +71,7 @@ struct TodoRowView: View {
                     }
                 }
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Hover actions
             HoverActions {
@@ -89,7 +86,7 @@ struct TodoRowView: View {
                     .foregroundStyle(.secondary)
                     .help(item.isArchived ? "Restore" : "Archive")
 
-                    Button { onTap?() } label: {
+                    Button { withAnimation(.spring(duration: 0.3)) { onTap?() } } label: {
                         Image(systemName: "pencil")
                             .font(.system(size: 12))
                     }
@@ -99,10 +96,10 @@ struct TodoRowView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
         .contentShape(Rectangle())
-        .onTapGesture { onTap?() }
+        .onTapGesture { withAnimation(.spring(duration: 0.3)) { onTap?() } }
         .contextMenu {
             Button(item.isCompleted ? "Mark Incomplete" : "Mark Complete") {
                 store.toggleCompleted(item)

@@ -9,10 +9,14 @@ struct MainContentView: View {
         @Published var newTodoTitle: String = ""
         @Published var showingArchive: Bool = false
         @Published var selectedItem: TodoItem?
+        @Published var showingAddList = false
+        @Published var editingList: TodoList?
+        @Published var newListName = ""
+        @Published var newListColorHex: String?
+        @Published var showingAddForm: Bool = false
     }
 
     @StateObject private var vs = ViewState()
-    @FocusState private var quickAddFocused: Bool
 
     private var selectedList: TodoList? {
         guard let id = vs.selectedListID else { return nil }
@@ -27,7 +31,13 @@ struct MainContentView: View {
             HStack(spacing: 0) {
                 // Sidebar
                 VStack(spacing: 0) {
-                    ListSidebarView(selectedListID: $vs.selectedListID)
+                    ListSidebarView(
+                        selectedListID: $vs.selectedListID,
+                        showingAddList: $vs.showingAddList,
+                        editingList: $vs.editingList,
+                        newListName: $vs.newListName,
+                        newListColorHex: $vs.newListColorHex
+                    )
                     Spacer()
                 }
                 .frame(width: 140)
@@ -54,16 +64,102 @@ struct MainContentView: View {
             }
         }
         .frame(width: 560, height: 480)
-        .sheet(item: $vs.selectedItem) { item in
-            TodoDetailView(item: item) { updated in
-                store.update(updated)
+        .overlay {
+            if let item = vs.selectedItem {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } },
+                    content: {
+                        TodoDetailView(
+                            item: item,
+                            onSave: { updated in store.update(updated) },
+                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } }
+                        )
+                        .environmentObject(store)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            } else if vs.showingAddForm {
+                BottomSheetContainer(
+                    onEscape: {
+                        withAnimation(.spring(duration: 0.3)) {
+                            vs.showingAddForm = false
+                            vs.newTodoTitle = ""
+                        }
+                    },
+                    content: {
+                        AddTodoSheet(
+                            initialTitle: vs.newTodoTitle,
+                            defaultListID: vs.selectedListID,
+                            onSave: { item in
+                                store.add(item)
+                                withAnimation(.spring(duration: 0.3)) {
+                                    vs.showingAddForm = false
+                                    vs.newTodoTitle = ""
+                                }
+                            },
+                            onDismiss: {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    vs.showingAddForm = false
+                                    vs.newTodoTitle = ""
+                                }
+                            }
+                        )
+                        .environmentObject(store)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            } else if vs.showingAddList {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } },
+                    content: {
+                        ListEditSheet(
+                            name: $vs.newListName,
+                            colorHex: $vs.newListColorHex,
+                            title: "New List",
+                            onSave: { store.add(TodoList(name: vs.newListName, colorHex: vs.newListColorHex)) },
+                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } }
+                        )
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            } else if let list = vs.editingList {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
+                    content: {
+                        ListEditSheetCopy(
+                            list: list,
+                            onSave: { updated in store.update(updated) },
+                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } }
+                        )
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            } else if vs.showingArchive {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } },
+                    content: {
+                        ArchiveView(onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } })
+                            .environmentObject(store)
+                            .frame(height: 440)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
             }
-            .environmentObject(store)
-        }
-        .sheet(isPresented: $vs.showingArchive) {
-            ArchiveView()
-                .environmentObject(store)
-                .frame(width: 420, height: 500)
         }
     }
 
@@ -81,7 +177,7 @@ struct MainContentView: View {
                     .font(.system(size: 13, weight: .semibold))
             }
             Spacer()
-            Button { vs.showingArchive = true } label: {
+            Button { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = true } } label: {
                 Image(systemName: "archivebox").font(.system(size: 13))
             }
             .buttonStyle(.plain)
@@ -102,29 +198,31 @@ struct MainContentView: View {
     // MARK: Quick-add bar
 
     private var quickAddBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.accentColor)
-            TextField("Add a todo…", text: $vs.newTodoTitle)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .focused($quickAddFocused)
-                .onSubmit { addTodo() }
-            if !vs.newTodoTitle.isEmpty {
-                Button("Add") { addTodo() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+        Button {
+            vs.newTodoTitle = ""
+            withAnimation(.spring(duration: 0.3)) { vs.showingAddForm = true }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.accentColor)
+                Text("Add a todo…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                Spacer()
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
     }
 
     private func addTodo() {
         let title = vs.newTodoTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
-        store.add(TodoItem(title: title, listID: vs.selectedListID))
+        let item = TodoItem(title: title, listID: vs.selectedListID)
+        store.add(item)
         vs.newTodoTitle = ""
     }
 }
