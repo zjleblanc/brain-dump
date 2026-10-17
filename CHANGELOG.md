@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-16 — Full emoji/color pickers, toolbar rework, and unified completed-items toggle
+
+### Added
+- `AddTodoSheet` — added a Tags section (with inline tag creation, same `FlowLayout` picker as `TodoDetailView`) and reorganized into a two-column layout (Title/Notes on the left; List/Tags/Due Date/Color on the right), matching `TodoDetailView`
+- `EmojiPicker.swift` (new) — `AppEmojiPalette.emojis` computed from Unicode scalar properties (`isEmojiPresentation`), giving ~1,200+ emoji in a scrollable in-app grid; replaces the "pick an emoji" button that called `NSApp.orderFrontCharacterPalette`
+- `SpectrumColorPicker.swift` (new) — fully custom SwiftUI `SpectrumColorPickerView` (draggable saturation/brightness field, hue strip, hex text entry, quick presets) for continuous color choice without opening `NSColorPanel`; replaces `PalettePickerView` everywhere a color is picked (todo color, list color, tag color)
+- `Color.toHex()`, `Color.hsb()`, and `HSBComponents` (`ColorHex.swift`) — RGB↔HSB/hex conversions backing the new color picker
+- `TodosApp` prewarms the emoji scan on a background queue at launch so the ~150ms Unicode scan is already cached before the list emoji picker is first opened
+
+### Changed
+- Toolbar: Quit (power icon) moved to the far left, Settings (gear icon) stays far right, and the active list name/icon is now centered via a `ZStack`, independent of the button widths on either side
+- Main pane search row simplified to just the search field and a `+` add-todo button; the old full-width "Add a todo…" quick-add bar was removed
+- Completed/cleared items unified into one toggle: open (active) tasks are now always visible; a "View Completed"/"Hide Completed" footer bar (eye icon + text, right-aligned) shows or hides a single Completed section containing both freshly-completed and already auto-cleared items, instead of swapping the whole pane to a separate cleared-only view
+- `ListIconPickerView` now uses `EmojiPickerView` and `SpectrumColorPickerView` instead of a raw text field plus the system character-palette button
+
+### Fixed
+- Emoji selection for lists was completely broken: the "pick an emoji" button opened the system Character Viewer, which caused the entire `MenuBarExtra(.window)` popover to lose key status and dismiss before a selection could be made
+
 ## 2026-10-16 — Two-column todo editor, auto-clearing completed items, and list emoji icons
 
 ### Added

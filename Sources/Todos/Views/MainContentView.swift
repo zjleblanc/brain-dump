@@ -16,7 +16,7 @@ struct MainContentView: View {
         @Published var newListEmoji: String?
         @Published var showingAddForm: Bool = false
         @Published var showingSettings: Bool = false
-        @Published var viewingCleared: Bool = false
+        @Published var showCompleted: Bool = false
     }
 
     @StateObject private var vs = ViewState()
@@ -50,19 +50,17 @@ struct MainContentView: View {
                 // Main pane
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
-                        SearchField(
-                            text: $vs.searchText,
-                            placeholder: vs.viewingCleared ? "Search cleared…" : "Search"
-                        )
+                        SearchField(text: $vs.searchText)
                         Button {
-                            withAnimation(.spring(duration: 0.25)) { vs.viewingCleared.toggle() }
+                            vs.newTodoTitle = ""
+                            withAnimation(.spring(duration: 0.3)) { vs.showingAddForm = true }
                         } label: {
-                            Image(systemName: vs.viewingCleared ? "eye.fill" : "eye.slash")
-                                .font(.system(size: 13))
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 16))
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(vs.viewingCleared ? Color.accentColor : .secondary)
-                        .help(vs.viewingCleared ? "Hide Cleared Items" : "View Cleared Items")
+                        .foregroundStyle(Color.accentColor)
+                        .help("Add a Todo")
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -72,13 +70,11 @@ struct MainContentView: View {
                     TodoListPane(
                         selectedListID: vs.selectedListID,
                         searchText: vs.searchText,
-                        viewingCleared: vs.viewingCleared
+                        showCompleted: vs.showCompleted
                     ) { vs.selectedItem = $0 }
 
-                    if !vs.viewingCleared {
-                        Divider()
-                        quickAddBar
-                    }
+                    Divider()
+                    viewCompletedBar
                 }
             }
         }
@@ -206,7 +202,8 @@ struct MainContentView: View {
     // MARK: Toolbar
 
     private var toolbar: some View {
-        HStack(spacing: 8) {
+        ZStack {
+            // Centered regardless of the width of the leading/trailing buttons.
             HStack(spacing: 6) {
                 if let emoji = selectedList?.emoji, !emoji.isEmpty {
                     Text(emoji).font(.system(size: 12))
@@ -218,40 +215,43 @@ struct MainContentView: View {
                 Text(selectedList?.name ?? "All")
                     .font(.system(size: 13, weight: .semibold))
             }
-            Spacer()
-            Button { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = true } } label: {
-                Image(systemName: "gearshape").font(.system(size: 13))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("Settings")
 
-            Button { NSApplication.shared.terminate(nil) } label: {
-                Image(systemName: "power").font(.system(size: 13))
+            HStack {
+                Button { NSApplication.shared.terminate(nil) } label: {
+                    Image(systemName: "power").font(.system(size: 13))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Quit Todos")
+
+                Spacer()
+
+                Button { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = true } } label: {
+                    Image(systemName: "gearshape").font(.system(size: 13))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Settings")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("Quit Todos")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
-    // MARK: Quick-add bar
+    // MARK: View Completed bar
 
-    private var quickAddBar: some View {
+    private var viewCompletedBar: some View {
         Button {
-            vs.newTodoTitle = ""
-            withAnimation(.spring(duration: 0.3)) { vs.showingAddForm = true }
+            withAnimation(.spring(duration: 0.25)) { vs.showCompleted.toggle() }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Color.accentColor)
-                Text("Add a todo…")
+                Spacer()
+                Image(systemName: vs.showCompleted ? "eye.fill" : "eye.slash")
+                    .font(.system(size: 14))
+                    .foregroundStyle(vs.showCompleted ? Color.accentColor : .secondary)
+                Text(vs.showCompleted ? "Hide Completed" : "View Completed")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                Spacer()
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -275,9 +275,9 @@ struct TodoListPane: View {
     @EnvironmentObject private var store: TodoStore
     let selectedListID: UUID?
     let searchText: String
-    /// When true, shows only cleared (auto-cleared completed) items instead of the
-    /// normal active/completed list.
-    var viewingCleared: Bool = false
+    /// Open (active) tasks are always shown. This only controls whether the
+    /// Completed section — including already auto-cleared items — is shown below them.
+    var showCompleted: Bool = false
     var onSelect: (TodoItem) -> Void
 
     private var baseItems: [TodoItem] {
@@ -296,23 +296,25 @@ struct TodoListPane: View {
         return result
     }
 
-    private var filtered: [TodoItem] {
-        baseItems.filter { !$0.isCleared }.sorted { $0.createdAt > $1.createdAt }
+    private var active: [TodoItem] {
+        baseItems.filter { !$0.isCompleted }.sorted { $0.createdAt > $1.createdAt }
     }
 
-    private var clearedItems: [TodoItem] {
+    /// Completed tasks, whether still within the auto-clear delay window or already
+    /// cleared — both are "completed tasks" from the user's perspective and are
+    /// shown/hidden together via `showCompleted`.
+    private var completed: [TodoItem] {
         baseItems
-            .filter { $0.isCleared }
-            .sorted { ($0.clearedAt ?? $0.createdAt) > ($1.clearedAt ?? $1.createdAt) }
+            .filter { $0.isCompleted }
+            .sorted { lhs, rhs in
+                let lhsDate = lhs.clearedAt ?? lhs.completedAt ?? lhs.createdAt
+                let rhsDate = rhs.clearedAt ?? rhs.completedAt ?? rhs.createdAt
+                return lhsDate > rhsDate
+            }
     }
-
-    private var active: [TodoItem] { filtered.filter { !$0.isCompleted } }
-    private var completed: [TodoItem] { filtered.filter { $0.isCompleted } }
 
     var body: some View {
-        if viewingCleared {
-            clearedListView
-        } else if filtered.isEmpty {
+        if active.isEmpty && (!showCompleted || completed.isEmpty) {
             emptyState
         } else {
             ScrollView {
@@ -322,10 +324,14 @@ struct TodoListPane: View {
                         Divider()
                     }
 
-                    if !completed.isEmpty {
+                    if showCompleted && !completed.isEmpty {
                         Section {
                             ForEach(completed) { item in
-                                TodoRowView(item: item) { onSelect(item) }
+                                TodoRowView(
+                                    item: item,
+                                    onTap: { onSelect(item) },
+                                    onRestore: { store.restoreCleared(item) }
+                                )
                                 Divider()
                             }
                         } header: {
@@ -345,26 +351,6 @@ struct TodoListPane: View {
         }
     }
 
-    @ViewBuilder
-    private var clearedListView: some View {
-        if clearedItems.isEmpty {
-            clearedEmptyState
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(clearedItems) { item in
-                        TodoRowView(
-                            item: item,
-                            onTap: { onSelect(item) },
-                            onRestore: { store.restoreCleared(item) }
-                        )
-                        Divider()
-                    }
-                }
-            }
-        }
-    }
-
     private var emptyState: some View {
         VStack(spacing: 8) {
             Spacer()
@@ -374,20 +360,6 @@ struct TodoListPane: View {
             Text(searchText.isEmpty ? "All done!" : "No results")
                 .font(.headline).foregroundStyle(.secondary)
             Text(searchText.isEmpty ? "Add a new todo below." : "Try a different search term.")
-                .font(.caption).foregroundStyle(.tertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var clearedEmptyState: some View {
-        VStack(spacing: 8) {
-            Spacer()
-            Image(systemName: "eye.slash")
-                .font(.system(size: 32))
-                .foregroundStyle(.secondary)
-            Text("No Cleared Items").font(.headline).foregroundStyle(.secondary)
-            Text("Todos you complete are cleared here automatically.")
                 .font(.caption).foregroundStyle(.tertiary)
             Spacer()
         }

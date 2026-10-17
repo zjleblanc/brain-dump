@@ -141,43 +141,17 @@ struct ListIconPickerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                TextField("🙂", text: Binding(
-                    get: { emoji ?? "" },
-                    set: { newValue in
-                        // Keep only the most recently typed character so re-typing
-                        // replaces rather than appends.
-                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        emoji = trimmed.isEmpty ? nil : String(trimmed.suffix(1))
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 44)
-                .multilineTextAlignment(.center)
-                .font(.system(size: 16))
+            Text("Pick an emoji icon")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                Button {
-                    NSApplication.shared.orderFrontCharacterPalette(nil)
-                } label: {
-                    Image(systemName: "face.smiling")
-                }
-                .buttonStyle(.bordered)
-                .help("Pick an emoji")
-
-                if let emoji, !emoji.isEmpty {
-                    Button("Clear") { self.emoji = nil }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
+            EmojiPickerView(selectedEmoji: $emoji)
 
             Text("Or pick a color (used when no emoji is set)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            PalettePickerView(selectedHex: $colorHex)
+            SpectrumColorPickerView(selectedHex: $colorHex)
         }
     }
 }

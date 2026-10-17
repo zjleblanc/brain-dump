@@ -4,6 +4,15 @@ import SwiftUI
 struct TodosApp: App {
     @StateObject private var store = TodoStore()
 
+    init() {
+        // Prewarm the emoji scan (~150ms) on a background queue so it's already
+        // cached by the time a user opens the list emoji picker, avoiding a
+        // one-time stutter during the sheet's slide-up animation.
+        DispatchQueue.global(qos: .utility).async {
+            _ = AppEmojiPalette.emojis
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MainContentView()

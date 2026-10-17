@@ -91,7 +91,7 @@ struct TodoDetailView: View {
                     }
 
                     section("Color") {
-                        PalettePickerView(selectedHex: $vs.draft.colorHex)
+                        SpectrumColorPickerView(selectedHex: $vs.draft.colorHex)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -227,7 +227,7 @@ struct TagEditSheet: View {
             TextField("Tag name", text: $name)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { save() }
-            PalettePickerView(selectedHex: $colorHex)
+            SpectrumColorPickerView(selectedHex: $colorHex)
             HStack {
                 Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()

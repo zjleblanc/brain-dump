@@ -41,6 +41,30 @@ extension Color {
         }
         self.init(.sRGB, red: red, green: green, blue: blue, opacity: alpha)
     }
+
+    /// Converts to a `#RRGGBB` hex string via the device RGB color space.
+    func toHex() -> String? {
+        guard let components = NSColor(self).usingColorSpace(.deviceRGB) else { return nil }
+        let red = Int((components.redComponent * 255).rounded())
+        let green = Int((components.greenComponent * 255).rounded())
+        let blue = Int((components.blueComponent * 255).rounded())
+        return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+
+    /// Decomposes into hue/saturation/brightness in the device RGB color space.
+    func hsb() -> HSBComponents? {
+        guard let components = NSColor(self).usingColorSpace(.deviceRGB) else { return nil }
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        components.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        return HSBComponents(hue: Double(hue), saturation: Double(saturation), brightness: Double(brightness))
+    }
+}
+
+/// Hue/saturation/brightness triple, used by `Color.hsb()` and `SpectrumColorPickerView`.
+struct HSBComponents {
+    var hue: Double
+    var saturation: Double
+    var brightness: Double
 }
 
 // MARK: - Palette picker
