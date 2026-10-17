@@ -4,6 +4,8 @@ struct TodoRowView: View {
     @EnvironmentObject private var store: TodoStore
     let item: TodoItem
     var onTap: (() -> Void)?
+    /// Supplied by the "View Cleared" list so a cleared row can be un-cleared.
+    var onRestore: (() -> Void)?
 
     private var itemTags: [Tag] { store.tags(for: item) }
 
@@ -40,6 +42,7 @@ struct TodoRowView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(item.isCompleted ? Color.accentColor : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: item.isCompleted)
             }
             .buttonStyle(.plain)
 
@@ -101,17 +104,42 @@ struct TodoRowView: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.spring(duration: 0.3)) { onTap?() } }
         .contextMenu {
-            Button(item.isCompleted ? "Mark Incomplete" : "Mark Complete") {
-                store.toggleCompleted(item)
+            if item.isCleared {
+                Button("Restore") { onRestore?() }
+                Divider()
+                Button("Delete Permanently", role: .destructive) {
+                    store.delete(item)
+                }
+            } else {
+                Button(item.isCompleted ? "Mark Incomplete" : "Mark Complete") {
+                    store.toggleCompleted(item)
+                }
+                Divider()
+                Button(item.isArchived ? "Restore from Archive" : "Archive") {
+                    store.toggleArchived(item)
+                }
+                Divider()
+                Button("Delete", role: .destructive) {
+                    store.delete(item)
+                }
             }
-            Divider()
-            Button(item.isArchived ? "Restore from Archive" : "Archive") {
-                store.toggleArchived(item)
+        }
+        .task(id: item.isCompleted) {
+            // Delayed auto-clear: once a todo is marked complete, wait briefly (so
+            // the completed state is visible) then move it into the hidden Cleared
+            // bucket. Re-checking complete and marking it incomplete again before
+            // the delay elapses cancels this task (the `id` changes) with no effect.
+            guard item.isCompleted else { return }
+            let delay = UInt64(max(0, store.settings.autoClearDelaySeconds))
+            do {
+                try await Task.sleep(nanoseconds: delay * 1_000_000_000)
+            } catch {
+                return
             }
-            Divider()
-            Button("Delete", role: .destructive) {
-                store.delete(item)
-            }
+            guard let current = store.items.first(where: { $0.id == item.id }),
+                  current.isCompleted, !current.isCleared, !current.isArchived
+            else { return }
+            store.clearItem(current)
         }
     }
 }

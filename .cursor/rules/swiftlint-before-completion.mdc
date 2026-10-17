@@ -1,0 +1,28 @@
+---
+description: Run SwiftLint before completing Swift coding tasks
+globs: Sources/**/*.swift
+alwaysApply: false
+---
+
+# Lint Before Completing Swift Tasks
+
+Before considering any Swift coding task in this project done, run SwiftLint
+with the same flags as the pre-commit hook and resolve every violation:
+
+```bash
+DYLD_FRAMEWORK_PATH=/Library/Developer/CommandLineTools/usr/lib \
+  swiftlint lint --strict --config .swiftlint.yml
+```
+
+- `--strict` treats warnings as failures, matching `.pre-commit-config.yaml`
+  so a clean local run means the pre-commit hook will also pass.
+- `DYLD_FRAMEWORK_PATH` is required so SwiftLint's SourceKit loads from the
+  Command Line Tools (no Xcode.app installed).
+- Fix every reported violation directly (reformat, rename, split lines,
+  etc.). Don't add `swiftlint:disable` comments to silence a rule unless it's
+  a genuine false positive incompatible with this project's
+  ObservableObject/StateObject pattern — see the `disabled_rules` comment in
+  `.swiftlint.yml` for the existing precedent and follow the same style of
+  justification comment if you add another.
+- Also run `swift build` after fixing lint issues to confirm nothing broke.
+- Report the final violation count (should be 0) when wrapping up the task.

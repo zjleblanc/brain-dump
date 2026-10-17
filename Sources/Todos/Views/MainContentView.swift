@@ -13,7 +13,10 @@ struct MainContentView: View {
         @Published var editingList: TodoList?
         @Published var newListName = ""
         @Published var newListColorHex: String?
+        @Published var newListEmoji: String?
         @Published var showingAddForm: Bool = false
+        @Published var showingSettings: Bool = false
+        @Published var viewingCleared: Bool = false
     }
 
     @StateObject private var vs = ViewState()
@@ -30,16 +33,15 @@ struct MainContentView: View {
 
             HStack(spacing: 0) {
                 // Sidebar
-                VStack(spacing: 0) {
-                    ListSidebarView(
-                        selectedListID: $vs.selectedListID,
-                        showingAddList: $vs.showingAddList,
-                        editingList: $vs.editingList,
-                        newListName: $vs.newListName,
-                        newListColorHex: $vs.newListColorHex
-                    )
-                    Spacer()
-                }
+                ListSidebarView(
+                    selectedListID: $vs.selectedListID,
+                    showingAddList: $vs.showingAddList,
+                    editingList: $vs.editingList,
+                    newListName: $vs.newListName,
+                    newListColorHex: $vs.newListColorHex,
+                    newListEmoji: $vs.newListEmoji,
+                    showingArchive: $vs.showingArchive
+                )
                 .frame(width: 140)
                 .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
 
@@ -47,19 +49,36 @@ struct MainContentView: View {
 
                 // Main pane
                 VStack(spacing: 0) {
-                    SearchField(text: $vs.searchText)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                    HStack(spacing: 8) {
+                        SearchField(
+                            text: $vs.searchText,
+                            placeholder: vs.viewingCleared ? "Search cleared…" : "Search"
+                        )
+                        Button {
+                            withAnimation(.spring(duration: 0.25)) { vs.viewingCleared.toggle() }
+                        } label: {
+                            Image(systemName: vs.viewingCleared ? "eye.fill" : "eye.slash")
+                                .font(.system(size: 13))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(vs.viewingCleared ? Color.accentColor : .secondary)
+                        .help(vs.viewingCleared ? "Hide Cleared Items" : "View Cleared Items")
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
 
                     Divider()
 
                     TodoListPane(
                         selectedListID: vs.selectedListID,
-                        searchText: vs.searchText
+                        searchText: vs.searchText,
+                        viewingCleared: vs.viewingCleared
                     ) { vs.selectedItem = $0 }
 
-                    Divider()
-                    quickAddBar
+                    if !vs.viewingCleared {
+                        Divider()
+                        quickAddBar
+                    }
                 }
             }
         }
@@ -121,8 +140,15 @@ struct MainContentView: View {
                         ListEditSheet(
                             name: $vs.newListName,
                             colorHex: $vs.newListColorHex,
+                            emoji: $vs.newListEmoji,
                             title: "New List",
-                            onSave: { store.add(TodoList(name: vs.newListName, colorHex: vs.newListColorHex)) },
+                            onSave: {
+                                store.add(TodoList(
+                                    name: vs.newListName,
+                                    colorHex: vs.newListColorHex,
+                                    emoji: vs.newListEmoji
+                                ))
+                            },
                             onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } }
                         )
                     }
@@ -159,6 +185,20 @@ struct MainContentView: View {
                     insertion: .move(edge: .bottom).combined(with: .opacity),
                     removal: .move(edge: .bottom).combined(with: .opacity)
                 ))
+            } else if vs.showingSettings {
+                BottomSheetContainer(
+                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false } },
+                    content: {
+                        SettingsView(onDismiss: {
+                            withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false }
+                        })
+                        .environmentObject(store)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
             }
         }
     }
@@ -168,7 +208,9 @@ struct MainContentView: View {
     private var toolbar: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
-                if let hex = selectedList?.colorHex, let color = Color(hex: hex) {
+                if let emoji = selectedList?.emoji, !emoji.isEmpty {
+                    Text(emoji).font(.system(size: 12))
+                } else if let hex = selectedList?.colorHex, let color = Color(hex: hex) {
                     Circle().fill(color).frame(width: 8, height: 8)
                 } else {
                     Image(systemName: "tray").font(.system(size: 12)).foregroundStyle(.secondary)
@@ -177,12 +219,12 @@ struct MainContentView: View {
                     .font(.system(size: 13, weight: .semibold))
             }
             Spacer()
-            Button { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = true } } label: {
-                Image(systemName: "archivebox").font(.system(size: 13))
+            Button { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = true } } label: {
+                Image(systemName: "gearshape").font(.system(size: 13))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("View Archive")
+            .help("Settings")
 
             Button { NSApplication.shared.terminate(nil) } label: {
                 Image(systemName: "power").font(.system(size: 13))
@@ -233,9 +275,12 @@ struct TodoListPane: View {
     @EnvironmentObject private var store: TodoStore
     let selectedListID: UUID?
     let searchText: String
+    /// When true, shows only cleared (auto-cleared completed) items instead of the
+    /// normal active/completed list.
+    var viewingCleared: Bool = false
     var onSelect: (TodoItem) -> Void
 
-    private var filtered: [TodoItem] {
+    private var baseItems: [TodoItem] {
         var result = store.items.filter { !$0.isArchived }
         if let id = selectedListID {
             result = result.filter { $0.listID == id }
@@ -248,28 +293,40 @@ struct TodoListPane: View {
                 store.tags(for: $0).contains(where: { $0.name.lowercased().contains(query) })
             }
         }
-        return result.sorted { $0.createdAt > $1.createdAt }
+        return result
+    }
+
+    private var filtered: [TodoItem] {
+        baseItems.filter { !$0.isCleared }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var clearedItems: [TodoItem] {
+        baseItems
+            .filter { $0.isCleared }
+            .sorted { ($0.clearedAt ?? $0.createdAt) > ($1.clearedAt ?? $1.createdAt) }
     }
 
     private var active: [TodoItem] { filtered.filter { !$0.isCompleted } }
     private var completed: [TodoItem] { filtered.filter { $0.isCompleted } }
 
     var body: some View {
-        if filtered.isEmpty {
+        if viewingCleared {
+            clearedListView
+        } else if filtered.isEmpty {
             emptyState
         } else {
             ScrollView {
                 LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                     ForEach(active) { item in
                         TodoRowView(item: item) { onSelect(item) }
-                        Divider().padding(.leading, 40)
+                        Divider()
                     }
 
                     if !completed.isEmpty {
                         Section {
                             ForEach(completed) { item in
                                 TodoRowView(item: item) { onSelect(item) }
-                                Divider().padding(.leading, 40)
+                                Divider()
                             }
                         } header: {
                             HStack {
@@ -277,17 +334,31 @@ struct TodoListPane: View {
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Button("Clear") {
-                                    store.deleteCompleted(in: selectedListID)
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 5)
                             .background(.regularMaterial)
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var clearedListView: some View {
+        if clearedItems.isEmpty {
+            clearedEmptyState
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(clearedItems) { item in
+                        TodoRowView(
+                            item: item,
+                            onTap: { onSelect(item) },
+                            onRestore: { store.restoreCleared(item) }
+                        )
+                        Divider()
                     }
                 }
             }
@@ -303,6 +374,20 @@ struct TodoListPane: View {
             Text(searchText.isEmpty ? "All done!" : "No results")
                 .font(.headline).foregroundStyle(.secondary)
             Text(searchText.isEmpty ? "Add a new todo below." : "Try a different search term.")
+                .font(.caption).foregroundStyle(.tertiary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var clearedEmptyState: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            Image(systemName: "eye.slash")
+                .font(.system(size: 32))
+                .foregroundStyle(.secondary)
+            Text("No Cleared Items").font(.headline).foregroundStyle(.secondary)
+            Text("Todos you complete are cleared here automatically.")
                 .font(.caption).foregroundStyle(.tertiary)
             Spacer()
         }

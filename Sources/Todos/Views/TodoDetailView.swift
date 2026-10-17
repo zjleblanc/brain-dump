@@ -33,121 +33,136 @@ struct TodoDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-
-                section("Title") {
-                    TextField("Todo title", text: $vs.draft.title, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14))
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor)))
-                }
-
-                section("Notes") {
-                    TextEditor(text: $vs.draft.notes)
-                        .font(.system(size: 13))
-                        .frame(minHeight: 60, maxHeight: 120)
-                        .padding(4)
-                        .background(RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor)))
-                        .scrollContentBackground(.hidden)
-                }
-
-                section("List") {
-                    Picker("List", selection: $vs.draft.listID) {
-                        Text("None").tag(Optional<UUID>.none)
-                        ForEach(store.lists.sorted(by: { $0.sortOrder < $1.sortOrder })) { list in
-                            Text(list.name).tag(Optional(list.id))
-                        }
+            HStack(alignment: .top, spacing: 20) {
+                // Left column: Title + Notes
+                VStack(alignment: .leading, spacing: 20) {
+                    section("Title") {
+                        TextField("Todo title", text: $vs.draft.title, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 14))
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor)))
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
 
-                section("Due Date") {
-                    Toggle("Set due date", isOn: $vs.hasDueDate)
-                        .toggleStyle(.switch)
-                        .onChange(of: vs.hasDueDate) { _, new in
-                            vs.draft.dueDate = new ? (vs.draft.dueDate ?? Date()) : nil
+                    section("Notes") {
+                        TextEditor(text: $vs.draft.notes)
+                            .font(.system(size: 13))
+                            .frame(minHeight: 120, maxHeight: 220)
+                            .padding(4)
+                            .background(RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor)))
+                            .scrollContentBackground(.hidden)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Right column: List, Due Date, Color, Tags
+                VStack(alignment: .leading, spacing: 20) {
+                    section("List") {
+                        Picker("List", selection: $vs.draft.listID) {
+                            Text("None").tag(Optional<UUID>.none)
+                            ForEach(store.lists.sorted(by: { $0.sortOrder < $1.sortOrder })) { list in
+                                Text(list.name).tag(Optional(list.id))
+                            }
                         }
-                    if vs.hasDueDate {
-                        DatePicker(
-                            "Due",
-                            selection: Binding(
-                                get: { vs.draft.dueDate ?? Date() },
-                                set: { vs.draft.dueDate = $0 }
-                            ),
-                            displayedComponents: [.date]
-                        )
+                        .pickerStyle(.menu)
                         .labelsHidden()
-                        .datePickerStyle(.graphical)
                     }
-                }
 
-                section("Color") {
-                    PalettePickerView(selectedHex: $vs.draft.colorHex)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Tags")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        Spacer()
-                        Button {
-                            vs.newTagName = ""
-                            vs.newTagColorHex = nil
-                            withAnimation(.spring(duration: 0.3)) { vs.showingAddTag = true }
-                        } label: {
-                            Image(systemName: "plus.circle").font(.system(size: 13))
+                    section("Due Date") {
+                        Toggle("Set due date", isOn: $vs.hasDueDate)
+                            .toggleStyle(.switch)
+                            .onChange(of: vs.hasDueDate) { _, new in
+                                vs.draft.dueDate = new ? (vs.draft.dueDate ?? Date()) : nil
+                            }
+                        if vs.hasDueDate {
+                            DatePicker(
+                                "Due",
+                                selection: Binding(
+                                    get: { vs.draft.dueDate ?? Date() },
+                                    set: { vs.draft.dueDate = $0 }
+                                ),
+                                displayedComponents: [.date]
+                            )
+                            .labelsHidden()
+                            .datePickerStyle(.graphical)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
                     }
 
-                    FlowLayout(spacing: 6) {
-                        ForEach(store.tags.sorted(by: { $0.name < $1.name })) { tag in
-                            let isSelected = vs.draft.tagIDs.contains(tag.id)
+                    section("Color") {
+                        PalettePickerView(selectedHex: $vs.draft.colorHex)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Tags")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            Spacer()
                             Button {
-                                if isSelected {
-                                    vs.draft.tagIDs.removeAll { $0 == tag.id }
-                                } else {
-                                    vs.draft.tagIDs.append(tag.id)
-                                }
+                                vs.newTagName = ""
+                                vs.newTagColorHex = nil
+                                withAnimation(.spring(duration: 0.3)) { vs.showingAddTag = true }
                             } label: {
-                                TagBadgeView(tag: tag)
-                                    .overlay {
-                                        if isSelected {
-                                            Capsule().stroke(Color.accentColor, lineWidth: 1.5)
-                                        }
-                                    }
+                                Image(systemName: "plus.circle").font(.system(size: 13))
                             }
                             .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                        }
+
+                        FlowLayout(spacing: 6) {
+                            ForEach(store.tags.sorted(by: { $0.name < $1.name })) { tag in
+                                let isSelected = vs.draft.tagIDs.contains(tag.id)
+                                Button {
+                                    if isSelected {
+                                        vs.draft.tagIDs.removeAll { $0 == tag.id }
+                                    } else {
+                                        vs.draft.tagIDs.append(tag.id)
+                                    }
+                                } label: {
+                                    TagBadgeView(tag: tag)
+                                        .overlay {
+                                            if isSelected {
+                                                Capsule().stroke(Color.accentColor, lineWidth: 1.5)
+                                            }
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if store.tags.isEmpty {
+                            Text("No tags yet. Tap + to create one.")
+                                .font(.caption).foregroundStyle(.tertiary)
                         }
                     }
-
-                    if store.tags.isEmpty {
-                        Text("No tags yet. Tap + to create one.")
-                            .font(.caption).foregroundStyle(.tertiary)
-                    }
                 }
-
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+        }
+        .frame(width: 520)
+        .safeAreaInset(edge: .top) {
+            HStack {
+                Text("Edit Todo").font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.regularMaterial)
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack {
                 Button("Delete Todo", role: .destructive) {
                     store.delete(vs.draft)
                     onDismiss()
                 }
                 .foregroundStyle(.red)
-                .frame(maxWidth: .infinity)
-            }
-            .padding(16)
-        }
-        .frame(width: 320)
-        .safeAreaInset(edge: .top) {
-            HStack {
-                Text("Edit Todo").font(.headline)
+
                 Spacer()
+
                 Button("Done") { save() }.keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 16)

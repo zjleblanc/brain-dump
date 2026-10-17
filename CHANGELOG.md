@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-16 — Two-column todo editor, auto-clearing completed items, and list emoji icons
+
+### Added
+- `TodoDetailView` — redesigned into a two-column layout (Title/Notes on the left, List/Due Date/Color/Tags on the right, widened to 520 pt) with a sticky bottom footer holding `Delete Todo` and `Done`; the top header now only shows the title
+- Completed-item auto-clear workflow: the checkbox gives a brief bounce/pulse indicator on completion, then a background task (`TodoRowView`) auto-clears the item into a new hidden "Cleared" state after a configurable delay — no more manual "Clear" button/notification bar
+- "View Cleared" toggle (eye icon next to search in `MainContentView`) shows auto-cleared items in their own list, scoped to the current list/search; each row supports **Restore** or **Delete Permanently** via context menu
+- `SettingsView.swift` (new) — settings sheet, opened via a new gear icon in the main toolbar, with pickers for: auto-clear delay (1/2/3/5/10/15/30 seconds, default 3s), cleared-item retention (Never/1/7/30/90 days, default 30), and archived-item retention (Never/1/7/30/90 days, default Never)
+- `AppSettings.swift` (new) — persisted app-wide settings model with a hand-written `Codable` implementation so new fields never break decoding of older `data.json` files
+- `TodoStore.purgeExpired()` — permanently deletes cleared/archived items past their configured retention window; runs on launch and hourly via an internal timer
+- List emoji icons — `TodoList.emoji` plus a `ListIconPickerView` (emoji text field + button that opens macOS's native Character Viewer) in both list-edit sheets; emoji takes precedence over the color dot wherever a list's icon is shown (sidebar rows, main toolbar title)
+- `ListSidebarView` sticky icon-only footer (`+` New List, archive-box View Archive) pinned via `safeAreaInset`, replacing the old inline "New List" row and the toolbar's archive button
+
+### Changed
+- `ListSidebarView` list rows gained `.contentShape(Rectangle())` so the entire row is clickable, not just the icon/text
+- `TodoListPane` dividers between rows now span the full row width (removed the `.padding(.leading, 40)` gap)
+- `TodoItem` gained optional `clearedAt`/`archivedAt` timestamps (`isCleared` is now computed from `clearedAt`); `toggleArchived` stamps `archivedAt` and clears any `clearedAt`
+- `TodoStore` is now `@MainActor`; legacy archived items without `archivedAt` are backfilled on load so a newly-enabled retention policy doesn't immediately purge pre-existing data
+- Removed `TodoStore.deleteCompleted(in:)` and the "Completed · Clear" notification-bar button it powered
+
 ## 2026-10-16 — Slide-up panels, improved add-todo flow, and row layout fixes
 
 ### Added

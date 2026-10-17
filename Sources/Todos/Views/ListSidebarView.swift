@@ -7,53 +7,75 @@ struct ListSidebarView: View {
     @Binding var editingList: TodoList?
     @Binding var newListName: String
     @Binding var newListColorHex: String?
+    @Binding var newListEmoji: String?
+    @Binding var showingArchive: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            listRow(
-                label: "All",
-                systemIcon: "tray",
-                colorHex: nil,
-                count: store.activeItemCount,
-                isSelected: selectedListID == nil
-            ) { selectedListID = nil }
-
-            Divider().padding(.vertical, 2)
-
-            ForEach(store.lists.sorted(by: { $0.sortOrder < $1.sortOrder })) { list in
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
                 listRow(
-                    label: list.name,
-                    systemIcon: "list.bullet",
-                    colorHex: list.colorHex,
-                    count: store.activeCount(in: list),
-                    isSelected: selectedListID == list.id
-                ) { selectedListID = list.id }
-                .contextMenu {
-                    Button("Edit") { withAnimation(.spring(duration: 0.3)) { editingList = list } }
-                    Divider()
-                    Button("Delete", role: .destructive) {
-                        if selectedListID == list.id { selectedListID = nil }
-                        store.delete(list)
+                    label: "All",
+                    systemIcon: "tray",
+                    colorHex: nil,
+                    emoji: nil,
+                    count: store.activeItemCount,
+                    isSelected: selectedListID == nil
+                ) { selectedListID = nil }
+
+                Divider().padding(.vertical, 2)
+
+                ForEach(store.lists.sorted(by: { $0.sortOrder < $1.sortOrder })) { list in
+                    listRow(
+                        label: list.name,
+                        systemIcon: "list.bullet",
+                        colorHex: list.colorHex,
+                        emoji: list.emoji,
+                        count: store.activeCount(in: list),
+                        isSelected: selectedListID == list.id
+                    ) { selectedListID = list.id }
+                    .contextMenu {
+                        Button("Edit") { withAnimation(.spring(duration: 0.3)) { editingList = list } }
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            if selectedListID == list.id { selectedListID = nil }
+                            store.delete(list)
+                        }
                     }
                 }
             }
-
-            Divider().padding(.vertical, 2)
-
-            Button {
-                newListName = ""
-                newListColorHex = nil
-                withAnimation(.spring(duration: 0.3)) { showingAddList = true }
-            } label: {
-                Label("New List", systemImage: "plus")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
         }
-        .padding(.vertical, 6)
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 16) {
+                Button {
+                    newListName = ""
+                    newListColorHex = nil
+                    newListEmoji = nil
+                    withAnimation(.spring(duration: 0.3)) { showingAddList = true }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .help("New List")
+
+                Spacer()
+
+                Button {
+                    withAnimation(.spring(duration: 0.3)) { showingArchive = true }
+                } label: {
+                    Image(systemName: "archivebox")
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("View Archive")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.regularMaterial)
+        }
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -61,13 +83,18 @@ struct ListSidebarView: View {
         label: String,
         systemIcon: String,
         colorHex: String?,
+        emoji: String?,
         count: Int,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if let hex = colorHex, let color = Color(hex: hex) {
+                if let emoji, !emoji.isEmpty {
+                    Text(emoji)
+                        .font(.system(size: 13))
+                        .frame(width: 16, height: 16)
+                } else if let hex = colorHex, let color = Color(hex: hex) {
                     Circle()
                         .fill(color)
                         .frame(width: 8, height: 8)
@@ -97,9 +124,61 @@ struct ListSidebarView: View {
                     RoundedRectangle(cornerRadius: 6).fill(Color.clear)
                 }
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(isSelected ? .white : .primary)
+    }
+}
+
+// MARK: - Emoji / color picker row
+
+/// Lets a list pick EITHER a single emoji icon OR fall back to a palette color.
+/// Emoji takes visual precedence when set (see `listRow` above).
+struct ListIconPickerView: View {
+    @Binding var emoji: String?
+    @Binding var colorHex: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("🙂", text: Binding(
+                    get: { emoji ?? "" },
+                    set: { newValue in
+                        // Keep only the most recently typed character so re-typing
+                        // replaces rather than appends.
+                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        emoji = trimmed.isEmpty ? nil : String(trimmed.suffix(1))
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 44)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 16))
+
+                Button {
+                    NSApplication.shared.orderFrontCharacterPalette(nil)
+                } label: {
+                    Image(systemName: "face.smiling")
+                }
+                .buttonStyle(.bordered)
+                .help("Pick an emoji")
+
+                if let emoji, !emoji.isEmpty {
+                    Button("Clear") { self.emoji = nil }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            Text("Or pick a color (used when no emoji is set)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            PalettePickerView(selectedHex: $colorHex)
+        }
     }
 }
 
@@ -108,6 +187,7 @@ struct ListSidebarView: View {
 struct ListEditSheet: View {
     @Binding var name: String
     @Binding var colorHex: String?
+    @Binding var emoji: String?
     var title: String
     var onSave: () -> Void
     var onDismiss: () -> Void
@@ -118,7 +198,7 @@ struct ListEditSheet: View {
             TextField("List name", text: $name)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { save() }
-            PalettePickerView(selectedHex: $colorHex)
+            ListIconPickerView(emoji: $emoji, colorHex: $colorHex)
             HStack {
                 Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
@@ -161,7 +241,7 @@ struct ListEditSheetCopy: View {
             Text("Edit List").font(.headline)
             TextField("List name", text: $vs.draft.name)
                 .textFieldStyle(.roundedBorder)
-            PalettePickerView(selectedHex: $vs.draft.colorHex)
+            ListIconPickerView(emoji: $vs.draft.emoji, colorHex: $vs.draft.colorHex)
             HStack {
                 Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
