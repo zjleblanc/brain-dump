@@ -1,20 +1,9 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+## [1.3.1]
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
-
-Each `## [x.y.z]` heading below corresponds to a git tag of the same name
-(e.g. `v1.3.0`). Pushing that tag triggers [.github/workflows/release.yml](.github/workflows/release.yml),
-which publishes a GitHub Release using the matching section of this file as
-its release notes. See [docs/RELEASING.md](docs/RELEASING.md) for the full
-process.
-
-## [Unreleased]
-
-Nothing yet — add new entries here as you work, then move them under a new
-`## [x.y.z] - YYYY-MM-DD` heading when you cut a release.
+### Fixed
+- `.github/workflows/release.yml` — the optional-codesigning `if:` condition referenced `secrets.MACOS_CERTIFICATE_P12_BASE64` directly, which GitHub Actions rejects with `Unrecognized named-value: 'secrets'` (secrets can't be used directly inside `if:` conditionals); now surfaced via a job-level `HAS_SIGNING_CERT` env var and checked as `env.HAS_SIGNING_CERT == 'true'` instead
 
 ## [1.3.0] - 2026-10-16 — Full emoji/color pickers, toolbar rework, and unified completed-items toggle
 
