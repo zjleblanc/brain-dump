@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.0]
 
 ### Added
 - Custom app icon (`Sources/BrainDump/Resources/AppIcon.icns`), generated without requiring an Apple Developer account — `scripts/bundle.sh` copies it into the packaged `.app` and sets `CFBundleIconFile`; `Package.swift` excludes it from SPM's default resource-copying
