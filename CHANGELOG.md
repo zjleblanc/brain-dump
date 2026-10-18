@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Custom app icon (`Sources/Todos/Resources/AppIcon.icns`), generated without requiring an Apple Developer account — `scripts/bundle.sh` copies it into the packaged `.app` and sets `CFBundleIconFile`; `Package.swift` excludes it from SPM's default resource-copying
+- Menu bar glyph — `MenuBarLabel` now shows a monochrome, square, line-art brain icon (extracted directly from the app icon's artwork and baked into a template `NSImage`) in place of the generic `checklist` SF Symbol
+
+### Fixed
+- `.github/workflows/release.yml` — the `.dmg` artifact was never submitted for notarization (only the `.zip` was), causing macOS Gatekeeper to reject the DMG download as "damaged"; added a `Notarize .dmg` step that submits the DMG to `notarytool` and staples the ticket after packaging
+
 ## [1.3.1]
 
 ### Fixed

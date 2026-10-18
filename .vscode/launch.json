@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:todos}",
+            "name": "Debug Todos",
+            "target": "Todos",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Todos"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:todos}",
+            "name": "Release Todos",
+            "target": "Todos",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Todos"
+        }
+    ]
+}

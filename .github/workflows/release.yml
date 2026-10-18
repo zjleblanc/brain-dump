@@ -114,6 +114,20 @@ jobs:
           # in headless CI; fail the step only if the .dmg wasn't produced.
           test -f "Todos-${{ steps.version.outputs.version }}.dmg"
 
+      - name: Notarize .dmg
+        if: ${{ steps.signing.outputs.signed == 'true' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool submit "Todos-${{ steps.version.outputs.version }}.dmg" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple "Todos-${{ steps.version.outputs.version }}.dmg"
+
       - name: Extract changelog section
         id: changelog
         run: |
