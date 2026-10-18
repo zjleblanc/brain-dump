@@ -1,4 +1,8 @@
-# Todos
+# BrainDump
+
+<p align="center">
+  <img src="Sources/BrainDump/Resources/AppIcon.png" width="128" alt="BrainDump app icon" />
+</p>
 
 A native macOS menubar todo list app. Lives in your status bar, stays out of your way.
 
@@ -28,11 +32,11 @@ No third-party dependencies.
 
 Pre-built, versioned downloads (`.zip` and `.dmg`) are published on the
 [Releases page](../../releases) for every tagged version. Grab the latest
-release, open the `.dmg` (or unzip the `.zip`), and drag `Todos.app`
+release, open the `.dmg` (or unzip the `.zip`), and drag `BrainDump.app`
 wherever you like.
 
 If a release isn't codesigned/notarized yet, Gatekeeper will warn on first
-open — right-click `Todos.app` and choose **Open** to bypass it once.
+open — right-click `BrainDump.app` and choose **Open** to bypass it once.
 
 Prefer to build it yourself? See [Build & Run](#build--run) below.
 
@@ -56,24 +60,24 @@ For iterating quickly, `swift run` rebuilds only changed files — typical incre
 ```bash
 # Debug .app (fast, for local testing)
 ./scripts/bundle.sh
-open Todos.app
+open BrainDump.app
 
 # Optimised release .app
 ./scripts/bundle.sh release
-open Todos.app
+open BrainDump.app
 
 # Release + codesign (requires Apple Developer ID)
 ./scripts/bundle.sh release sign "Developer ID Application: Your Name (TEAMID)"
 ```
 
-`Todos.app` is produced in the project root. It has `LSUIElement = true` so it runs without a Dock icon.
+`BrainDump.app` is produced in the project root. It has `LSUIElement = true` so it runs without a Dock icon.
 
 ### Distributing
 
 | Method | Steps |
 |---|---|
-| Direct download | Zip `Todos.app`, notarise with `xcrun notarytool`, share the zip |
-| DMG | `brew install create-dmg && create-dmg --app-drop-link 400 150 Todos.dmg Todos.app` |
+| Direct download | Zip `BrainDump.app`, notarise with `xcrun notarytool`, share the zip |
+| DMG | `brew install create-dmg && create-dmg --app-drop-link 400 150 BrainDump.dmg BrainDump.app` |
 | Homebrew Cask | Add to a tap; write a Cask formula pointing at a notarised zip |
 
 ## Data
@@ -81,7 +85,7 @@ open Todos.app
 All todos are stored at:
 
 ```
-~/Library/Application Support/Todos/data.json
+~/Library/Application Support/BrainDump/data.json
 ```
 
 The file is plain JSON and written atomically after every change. You can back it up, inspect it, or migrate it freely.
@@ -89,10 +93,10 @@ The file is plain JSON and written atomically after every change. You can back i
 ## Project structure
 
 ```
-todos/
+braindump/
 ├── Package.swift               # SPM manifest — zero external dependencies
-├── Sources/Todos/
-│   ├── TodosApp.swift          # App entry point, MenuBarExtra scene
+├── Sources/BrainDump/
+│   ├── BrainDumpApp.swift      # App entry point, MenuBarExtra scene
 │   ├── Models/
 │   │   ├── TodoStore.swift     # All state + JSON persistence
 │   │   ├── TodoItem.swift      # Codable item model

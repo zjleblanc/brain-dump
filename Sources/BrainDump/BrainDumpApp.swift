@@ -3,7 +3,7 @@ import ImageIO
 import SwiftUI
 
 @main
-struct TodosApp: App {
+struct BrainDumpApp: App {
     @StateObject private var store = TodoStore()
 
     init() {

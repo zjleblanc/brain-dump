@@ -14,7 +14,7 @@ private struct StoreData: Codable {
 // MARK: - Store
 
 /// Single source of truth for all todo data.
-/// Persisted as JSON at ~/Library/Application Support/Todos/data.json.
+/// Persisted as JSON at ~/Library/Application Support/BrainDump/data.json.
 @MainActor
 final class TodoStore: ObservableObject {
 
@@ -29,7 +29,7 @@ final class TodoStore: ObservableObject {
         let support = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first! // swiftlint:disable:this force_unwrapping
-        let dir = support.appendingPathComponent("Todos", isDirectory: true)
+        let dir = support.appendingPathComponent("BrainDump", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("data.json")
     }

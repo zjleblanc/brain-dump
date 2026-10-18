@@ -3,8 +3,12 @@
 ## [Unreleased]
 
 ### Added
-- Custom app icon (`Sources/Todos/Resources/AppIcon.icns`), generated without requiring an Apple Developer account — `scripts/bundle.sh` copies it into the packaged `.app` and sets `CFBundleIconFile`; `Package.swift` excludes it from SPM's default resource-copying
+- Custom app icon (`Sources/BrainDump/Resources/AppIcon.icns`), generated without requiring an Apple Developer account — `scripts/bundle.sh` copies it into the packaged `.app` and sets `CFBundleIconFile`; `Package.swift` excludes it from SPM's default resource-copying
 - Menu bar glyph — `MenuBarLabel` now shows a monochrome, square, line-art brain icon (extracted directly from the app icon's artwork and baked into a template `NSImage`) in place of the generic `checklist` SF Symbol
+- App icon shown in `SettingsView` (new "About" header) and in `README.md`, via a PNG (`Sources/BrainDump/Resources/AppIcon.png`) extracted from `AppIcon.icns` for Markdown rendering
+
+### Changed
+- **Rebranded the app from "Todos" to "BrainDump"**: `Package.swift` package/target renamed; `Sources/Todos/` moved to `Sources/BrainDump/`; `TodosApp.swift` renamed to `BrainDumpApp.swift` (`struct TodosApp` → `struct BrainDumpApp`); bundle identifier changed from `com.todos.app` to `com.braindump.app`; data directory moved from `~/Library/Application Support/Todos/` to `~/Library/Application Support/BrainDump/` (no migration — existing `data.json` is not carried over); updated `scripts/bundle.sh`, `.github/workflows/release.yml`, `Makefile`, `.vscode/launch.json`, `.gitleaks.toml`, `AGENTS.md`, `docs/RELEASING.md`, and `README.md` accordingly
 
 ### Fixed
 - `.github/workflows/release.yml` — the `.dmg` artifact was never submitted for notarization (only the `.zip` was), causing macOS Gatekeeper to reject the DMG download as "damaged"; added a `Notarize .dmg` step that submits the DMG to `notarytool` and staples the ticket after packaging

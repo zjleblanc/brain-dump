@@ -76,11 +76,11 @@ jobs:
         env:
           SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
         run: |
-          codesign --force --deep --sign "$SIGN_IDENTITY" --options runtime Todos.app
-          codesign --verify --verbose Todos.app
+          codesign --force --deep --sign "$SIGN_IDENTITY" --options runtime BrainDump.app
+          codesign --verify --verbose BrainDump.app
 
       - name: Package .zip
-        run: ditto -c -k --keepParent Todos.app "Todos-${{ steps.version.outputs.version }}.zip"
+        run: ditto -c -k --keepParent BrainDump.app "BrainDump-${{ steps.version.outputs.version }}.zip"
 
       - name: Notarize .zip
         if: ${{ steps.signing.outputs.signed == 'true' }}
@@ -89,30 +89,30 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          xcrun notarytool submit "Todos-${{ steps.version.outputs.version }}.zip" \
+          xcrun notarytool submit "BrainDump-${{ steps.version.outputs.version }}.zip" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --wait
-          xcrun stapler staple Todos.app
+          xcrun stapler staple BrainDump.app
           # Re-zip the stapled bundle so the published artifact carries the staple.
-          rm -f "Todos-${{ steps.version.outputs.version }}.zip"
-          ditto -c -k --keepParent Todos.app "Todos-${{ steps.version.outputs.version }}.zip"
+          rm -f "BrainDump-${{ steps.version.outputs.version }}.zip"
+          ditto -c -k --keepParent BrainDump.app "BrainDump-${{ steps.version.outputs.version }}.zip"
 
       - name: Install create-dmg
         run: brew install create-dmg
 
       - name: Package .dmg
         run: |
-          rm -f "Todos-${{ steps.version.outputs.version }}.dmg"
+          rm -f "BrainDump-${{ steps.version.outputs.version }}.dmg"
           create-dmg \
-            --volname "Todos" \
+            --volname "BrainDump" \
             --app-drop-link 400 150 \
-            "Todos-${{ steps.version.outputs.version }}.dmg" \
-            Todos.app || true
+            "BrainDump-${{ steps.version.outputs.version }}.dmg" \
+            BrainDump.app || true
           # create-dmg exits non-zero on benign AppleScript/Finder warnings
           # in headless CI; fail the step only if the .dmg wasn't produced.
-          test -f "Todos-${{ steps.version.outputs.version }}.dmg"
+          test -f "BrainDump-${{ steps.version.outputs.version }}.dmg"
 
       - name: Notarize .dmg
         if: ${{ steps.signing.outputs.signed == 'true' }}
@@ -121,12 +121,12 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          xcrun notarytool submit "Todos-${{ steps.version.outputs.version }}.dmg" \
+          xcrun notarytool submit "BrainDump-${{ steps.version.outputs.version }}.dmg" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --wait
-          xcrun stapler staple "Todos-${{ steps.version.outputs.version }}.dmg"
+          xcrun stapler staple "BrainDump-${{ steps.version.outputs.version }}.dmg"
 
       - name: Extract changelog section
         id: changelog
@@ -152,7 +152,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
-            "Todos-${{ steps.version.outputs.version }}.zip" \
-            "Todos-${{ steps.version.outputs.version }}.dmg" \
-            --title "Todos ${{ steps.version.outputs.version }}" \
+            "BrainDump-${{ steps.version.outputs.version }}.zip" \
+            "BrainDump-${{ steps.version.outputs.version }}.dmg" \
+            --title "BrainDump ${{ steps.version.outputs.version }}" \
             --notes-file "${{ steps.changelog.outputs.notes_file }}"

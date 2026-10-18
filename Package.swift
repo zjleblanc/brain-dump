@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "Todos",
+    name: "BrainDump",
     platforms: [
         .macOS(.v15)
     ],
     targets: [
         .executableTarget(
-            name: "Todos",
-            path: "Sources/Todos",
-            exclude: ["Resources/AppIcon.icns"]
+            name: "BrainDump",
+            path: "Sources/BrainDump",
+            exclude: ["Resources/AppIcon.icns", "Resources/AppIcon.png"]
         )
     ]
 )

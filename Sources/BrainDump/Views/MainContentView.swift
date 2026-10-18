@@ -250,7 +250,7 @@ struct MainContentView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .help("Quit Todos")
+                .help("Quit BrainDump")
 
                 Spacer()
 

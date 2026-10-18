@@ -1,4 +1,4 @@
-# Todos — AGENTS.md
+# BrainDump — AGENTS.md
 
 macOS menubar todo list app. Native SwiftUI + JSON persistence, built with Swift Package Manager.
 No Xcode.app required — builds and runs with `swift run`.
@@ -11,12 +11,12 @@ No Xcode.app required — builds and runs with `swift run`.
 ## Project Layout
 
 ```
-todos/
+braindump/
 ├── Package.swift                    # SPM manifest (swift-tools-version: 6.0, macOS 15, zero deps)
-├── Sources/Todos/
-│   ├── TodosApp.swift               # @main — MenuBarExtra + @StateObject TodoStore
+├── Sources/BrainDump/
+│   ├── BrainDumpApp.swift           # @main — MenuBarExtra + @StateObject TodoStore
 │   ├── Models/
-│   │   ├── TodoStore.swift          # ObservableObject; JSON persistence at ~/Library/Application Support/Todos/data.json
+│   │   ├── TodoStore.swift          # ObservableObject; JSON persistence at ~/Library/Application Support/BrainDump/data.json
 │   │   ├── TodoItem.swift           # Codable struct: title, notes, isCompleted, isArchived, dueDate, colorHex, tagIDs, listID
 │   │   ├── TodoList.swift           # Codable struct: name, colorHex, sortOrder
 │   │   └── Tag.swift                # Codable struct: name, colorHex
@@ -31,7 +31,7 @@ todos/
 │   └── Utilities/
 │       └── ColorHex.swift           # Color↔hex conversion, AppPalette, PalettePickerView
 ├── scripts/
-│   └── bundle.sh                    # Build + package as Todos.app (version via VERSION env var)
+│   └── bundle.sh                    # Build + package as BrainDump.app (version via VERSION env var)
 ├── .github/workflows/
 │   └── release.yml                  # Tag-triggered build, package, codesign/notarize, publish
 ├── docs/
@@ -68,7 +68,7 @@ After `swift run`, a checklist icon appears in the macOS menu bar. Click it to o
 ./scripts/bundle.sh release sign "Developer ID Application: Your Name (TEAMID)"
 
 # Open the resulting app
-open Todos.app
+open BrainDump.app
 ```
 
 ## Distribution
@@ -77,7 +77,7 @@ open Todos.app
 2. Notarise with `xcrun notarytool`
 3. Package as DMG with `create-dmg` (`brew install create-dmg`)
 
-Or distribute via Homebrew Cask — add `Todos.app.zip` to a tap and write a Cask formula.
+Or distribute via Homebrew Cask — add `BrainDump.app.zip` to a tap and write a Cask formula.
 
 ## Releasing
 
@@ -97,7 +97,7 @@ policy, and codesigning/notarization secret setup.
 
 All data is saved as JSON at:
 ```
-~/Library/Application Support/Todos/data.json
+~/Library/Application Support/BrainDump/data.json
 ```
 
 The file is written atomically after every mutation. No database engine, no migration setup.
@@ -129,6 +129,6 @@ TodoStore.save() → data.json
 ## Conventions
 
 - Conventional commits: `feat`, `fix`, `chore`, `refactor`, `docs`
-- All UI in `Sources/Todos/Views/`, all data models in `Sources/Todos/Models/`
-- Utilities (no SwiftUI scene logic) live in `Sources/Todos/Utilities/`
+- All UI in `Sources/BrainDump/Views/`, all data models in `Sources/BrainDump/Models/`
+- Utilities (no SwiftUI scene logic) live in `Sources/BrainDump/Utilities/`
 - Per-view local mutable state lives in a nested `final class ViewState: ObservableObject` inside the `View` struct, accessed via `@StateObject private var vs = ViewState()`

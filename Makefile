@@ -1,4 +1,4 @@
-# Todos — convenience targets
+# BrainDump — convenience targets
 #
 # WHY THE FILTER:
 #   The SwiftBuild backend incorrectly computes framework search paths as
@@ -24,7 +24,7 @@ build:
 ## Build and launch the menubar app
 run:
 	swift build 2>&1 | $(SWIFT_BUILD_FILTER)
-	.build/debug/Todos
+	.build/debug/BrainDump
 
 ## Build optimised release binary (warnings filtered)
 release:
@@ -32,7 +32,7 @@ release:
 
 ## Remove all build artefacts
 clean:
-	rm -rf .build Todos.app
+	rm -rf .build BrainDump.app
 
 ## Run SwiftLint (report only)
 lint:

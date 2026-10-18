@@ -5,20 +5,20 @@
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:todos}",
-            "name": "Debug Todos",
-            "target": "Todos",
+            "name": "Debug BrainDump",
+            "target": "BrainDump",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug Todos"
+            "preLaunchTask": "swift: Build Debug BrainDump"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:todos}",
-            "name": "Release Todos",
-            "target": "Todos",
+            "name": "Release BrainDump",
+            "target": "BrainDump",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release Todos"
+            "preLaunchTask": "swift: Build Release BrainDump"
         }
     ]
 }

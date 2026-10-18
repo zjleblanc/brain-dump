@@ -1,6 +1,6 @@
-# Releasing Todos
+# Releasing BrainDump
 
-This document describes how versioning and releases work for Todos, and how
+This document describes how versioning and releases work for BrainDump, and how
 to cut a new release.
 
 ## Overview
@@ -11,7 +11,7 @@ flowchart LR
     B --> C["git push origin vX.Y.Z"]
     C --> D["GitHub Actions:\nrelease.yml triggers"]
     D --> E["Build release binary\non macOS runner"]
-    E --> F["Package Todos.app\n(scripts/bundle.sh)"]
+    E --> F["Package BrainDump.app\n(scripts/bundle.sh)"]
     F --> G["Optional: codesign\n+ notarize"]
     G --> H["Create .zip and .dmg"]
     H --> I["Publish GitHub Release\nwith changelog notes\n+ .zip/.dmg assets"]
@@ -23,7 +23,7 @@ build-and-upload step and no separate "bump version" commit — the tag itself
 
 ## Versioning policy
 
-Todos uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`):
+BrainDump uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`):
 
 - **MAJOR** — breaking changes to the data file format that require manual
   migration, or major UX overhauls.
@@ -72,9 +72,9 @@ exists, the release is still published, but with a placeholder note.
 3. Watch the **Release** workflow run in the repo's **Actions** tab (or
    `gh run watch`). It will:
    - Build a release binary (`swift build -c release`)
-   - Bundle it into `Todos.app` with the correct version
+   - Bundle it into `BrainDump.app` with the correct version
    - Codesign and notarize it, if the signing secrets below are configured
-   - Package `Todos-X.Y.Z.zip` and `Todos-X.Y.Z.dmg`
+   - Package `BrainDump-X.Y.Z.zip` and `BrainDump-X.Y.Z.dmg`
    - Create a GitHub Release at tag `vX.Y.Z` with those two files attached
      and the matching `CHANGELOG.md` section as the release body
 4. Once the run finishes, check the new release under the repo's **Releases**
@@ -104,9 +104,9 @@ variables → Actions**:
 When all of these are present, the workflow additionally:
 
 1. Imports the certificate into a temporary CI keychain
-2. Codesigns `Todos.app` with the hardened runtime enabled
+2. Codesigns `BrainDump.app` with the hardened runtime enabled
 3. Submits the built `.zip` to Apple's notary service and waits for approval
-4. Staples the notarization ticket to `Todos.app` and re-packages the `.zip`
+4. Staples the notarization ticket to `BrainDump.app` and re-packages the `.zip`
 
 If any secret is missing, these steps are skipped automatically (the
 workflow checks for `MACOS_CERTIFICATE_P12_BASE64` as the gate) and the
@@ -121,13 +121,13 @@ You can reproduce the signed/notarized path locally without CI:
 VERSION=1.3.0 ./scripts/bundle.sh release sign "Developer ID Application: Your Name (TEAMID)"
 
 # Zip and notarize
-ditto -c -k --keepParent Todos.app Todos.zip
-xcrun notarytool submit Todos.zip --keychain-profile <profile> --wait
-xcrun stapler staple Todos.app
+ditto -c -k --keepParent BrainDump.app BrainDump.zip
+xcrun notarytool submit BrainDump.zip --keychain-profile <profile> --wait
+xcrun stapler staple BrainDump.app
 
 # Package a DMG
 brew install create-dmg
-create-dmg --app-drop-link 400 150 Todos.dmg Todos.app
+create-dmg --app-drop-link 400 150 BrainDump.dmg BrainDump.app
 ```
 
 See `xcrun notarytool store-credentials` to set up a reusable

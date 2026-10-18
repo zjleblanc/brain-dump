@@ -1,7 +1,7 @@
 # Gitleaks configuration
 # https://github.com/gitleaks/gitleaks
 
-title = "Todos gitleaks config"
+title = "BrainDump gitleaks config"
 
 [extend]
 # Use the default gitleaks ruleset as the base

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -23,11 +24,23 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 4) {
+                        Image(nsImage: NSApp.applicationIconImage)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                        Text("BrainDump")
+                            .font(.headline)
+                    }
+                    Spacer()
+                }
+
                 settingsSection(
                     "Launch at Login",
                     caption: LaunchAtLogin.isAvailable
-                        ? "Automatically start Todos when you log in to your Mac."
-                        : "Only available when Todos is run as a packaged app, not via `swift run`."
+                        ? "Automatically start BrainDump when you log in to your Mac."
+                        : "Only available when BrainDump is run as a packaged app, not via `swift run`."
                 ) {
                     Toggle("Launch at Login", isOn: $vs.launchAtLogin)
                         .labelsHidden()
@@ -61,7 +74,7 @@ struct SettingsView: View {
                 }
 
                 settingsSection(
-                    "Cleared Todos",
+                    "Cleared Items",
                     caption: "Completed todos clear automatically. Control how long they're kept "
                         + "before being permanently deleted."
                 ) {
@@ -79,7 +92,7 @@ struct SettingsView: View {
                 }
 
                 settingsSection(
-                    "Archived Todos",
+                    "Archived Items",
                     caption: "Control how long items stay in the Archive before being permanently deleted."
                 ) {
                     Picker("Permanently delete after", selection: $store.settings.archivedRetentionDays) {
