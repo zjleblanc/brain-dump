@@ -58,6 +58,12 @@ mkdir -p "$BUNDLE/Contents/Resources"
 # Copy binary
 cp "$BINARY" "$BUNDLE/Contents/MacOS/$APP_NAME"
 
+# Copy app icon (if present)
+ICON_SRC="$REPO_ROOT/Sources/Todos/Resources/AppIcon.icns"
+if [ -f "$ICON_SRC" ]; then
+    cp "$ICON_SRC" "$BUNDLE/Contents/Resources/AppIcon.icns"
+fi
+
 # Write Info.plist
 # LSUIElement=YES hides the Dock icon — essential for a menubar-only app.
 cat > "$BUNDLE/Contents/Info.plist" <<EOF
@@ -86,6 +92,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <string>© 2026</string>
     <key>LSUIElement</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

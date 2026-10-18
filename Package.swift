@@ -9,7 +9,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Todos",
-            path: "Sources/Todos"
+            path: "Sources/Todos",
+            exclude: ["Resources/AppIcon.icns"]
         )
     ]
 )
