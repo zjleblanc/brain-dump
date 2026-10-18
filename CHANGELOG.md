@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-18 — Launch at Login setting
+
+### Added
+- `LaunchAtLogin.swift` (new) — thin wrapper around `SMAppService.mainApp` (macOS 13+) exposing `isAvailable`, `isEnabled`, and `setEnabled(_:)` for registering/unregistering the app as a login item; no helper app or persisted `AppSettings` field needed since the OS is the source of truth for the toggle state
+- `SettingsView` — new "Launch at Login" section at the top of Settings with a toggle bound to `LaunchAtLogin`; reverts itself if the OS refuses the registration change, and shows disabled with an explanatory caption when run via `swift run` instead of the packaged `.app` (no bundle identifier available)
+
 ## 2026-10-16 — Full emoji/color pickers, toolbar rework, and unified completed-items toggle
 
 ### Added

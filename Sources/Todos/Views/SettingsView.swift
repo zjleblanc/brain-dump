@@ -4,6 +4,12 @@ struct SettingsView: View {
     @EnvironmentObject private var store: TodoStore
     var onDismiss: () -> Void
 
+    final class ViewState: ObservableObject {
+        @Published var launchAtLogin: Bool = LaunchAtLogin.isEnabled
+    }
+
+    @StateObject private var vs = ViewState()
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -17,6 +23,27 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 20) {
+                settingsSection(
+                    "Launch at Login",
+                    caption: LaunchAtLogin.isAvailable
+                        ? "Automatically start Todos when you log in to your Mac."
+                        : "Only available when Todos is run as a packaged app, not via `swift run`."
+                ) {
+                    Toggle("Launch at Login", isOn: $vs.launchAtLogin)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(!LaunchAtLogin.isAvailable)
+                        .onChange(of: vs.launchAtLogin) { _, newValue in
+                            do {
+                                try LaunchAtLogin.setEnabled(newValue)
+                            } catch {
+                                // Revert the toggle if the OS refused the registration
+                                // change (e.g. login items disabled by policy).
+                                vs.launchAtLogin = !newValue
+                            }
+                        }
+                }
+
                 settingsSection(
                     "Auto-Clear Delay",
                     caption: "How long a completed todo stays visible before it's automatically cleared."
