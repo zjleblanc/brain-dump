@@ -73,6 +73,7 @@ private struct BrainIcon {
     /// comfortably between the two.
     static let targetSide: CGFloat = 18
 
+    @MainActor
     static let templateImage: NSImage = {
         guard let data = Data(base64Encoded: base64PNG, options: .ignoreUnknownCharacters),
               let source = CGImageSourceCreateWithData(data as CFData, nil),
