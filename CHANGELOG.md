@@ -1,12 +1,22 @@
 # Changelog
 
-## 2026-10-18 — Launch at Login setting
+All notable changes to this project are documented in this file.
 
-### Added
-- `LaunchAtLogin.swift` (new) — thin wrapper around `SMAppService.mainApp` (macOS 13+) exposing `isAvailable`, `isEnabled`, and `setEnabled(_:)` for registering/unregistering the app as a login item; no helper app or persisted `AppSettings` field needed since the OS is the source of truth for the toggle state
-- `SettingsView` — new "Launch at Login" section at the top of Settings with a toggle bound to `LaunchAtLogin`; reverts itself if the OS refuses the registration change, and shows disabled with an explanatory caption when run via `swift run` instead of the packaged `.app` (no bundle identifier available)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## 2026-10-16 — Full emoji/color pickers, toolbar rework, and unified completed-items toggle
+Each `## [x.y.z]` heading below corresponds to a git tag of the same name
+(e.g. `v1.3.0`). Pushing that tag triggers [.github/workflows/release.yml](.github/workflows/release.yml),
+which publishes a GitHub Release using the matching section of this file as
+its release notes. See [docs/RELEASING.md](docs/RELEASING.md) for the full
+process.
+
+## [Unreleased]
+
+Nothing yet — add new entries here as you work, then move them under a new
+`## [x.y.z] - YYYY-MM-DD` heading when you cut a release.
+
+## [1.3.0] - 2026-10-16 — Full emoji/color pickers, toolbar rework, and unified completed-items toggle
 
 ### Added
 - `AddTodoSheet` — added a Tags section (with inline tag creation, same `FlowLayout` picker as `TodoDetailView`) and reorganized into a two-column layout (Title/Notes on the left; List/Tags/Due Date/Color on the right), matching `TodoDetailView`
@@ -24,7 +34,7 @@
 ### Fixed
 - Emoji selection for lists was completely broken: the "pick an emoji" button opened the system Character Viewer, which caused the entire `MenuBarExtra(.window)` popover to lose key status and dismiss before a selection could be made
 
-## 2026-10-16 — Two-column todo editor, auto-clearing completed items, and list emoji icons
+## [1.2.0] - 2026-10-16 — Two-column todo editor, auto-clearing completed items, and list emoji icons
 
 ### Added
 - `TodoDetailView` — redesigned into a two-column layout (Title/Notes on the left, List/Due Date/Color/Tags on the right, widened to 520 pt) with a sticky bottom footer holding `Delete Todo` and `Done`; the top header now only shows the title
@@ -43,7 +53,7 @@
 - `TodoStore` is now `@MainActor`; legacy archived items without `archivedAt` are backfilled on load so a newly-enabled retention policy doesn't immediately purge pre-existing data
 - Removed `TodoStore.deleteCompleted(in:)` and the "Completed · Clear" notification-bar button it powered
 
-## 2026-10-16 — Slide-up panels, improved add-todo flow, and row layout fixes
+## [1.1.0] - 2026-10-16 — Slide-up panels, improved add-todo flow, and row layout fixes
 
 ### Added
 - `ModalOverlay.swift` — new `BottomSheetContainer` that anchors content at the bottom of the panel, slides in from below with a spring transition, and rounds only the top corners; tap the backdrop to dismiss
@@ -62,7 +72,7 @@
 - Todo title text was not expanding to fill the right side of the row
 - Sidebar list icons and color dots were misaligned relative to label text
 
-## 2026-10-15 — Initial implementation of macOS menubar todo app
+## [1.0.0] - 2026-10-15 — Initial implementation of macOS menubar todo app
 
 ### Added
 - `Package.swift` — Swift Package Manager manifest targeting macOS 15+, zero external dependencies

@@ -8,6 +8,13 @@
 # To run it: open Todos.app
 # To sign it (requires Apple Developer ID):
 #   ./scripts/bundle.sh release sign "Developer ID Application: Your Name (TEAMID)"
+#
+# Versioning:
+#   The app version is the single source of truth from the git tag that
+#   triggers a release (see .github/workflows/release.yml), passed in via
+#   the VERSION environment variable, e.g.:
+#     VERSION=1.2.0 ./scripts/bundle.sh release
+#   When VERSION is unset (local dev builds), it falls back to "0.0.0-dev".
 
 set -euo pipefail
 
@@ -22,7 +29,17 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_NAME="Todos"
 BUNDLE="$REPO_ROOT/$APP_NAME.app"
 
-echo "▶ Building ($BUILD_CONFIG)…"
+# VERSION (CFBundleShortVersionString) — the user-facing version string.
+# Falls back to a dev placeholder when not supplied by CI/a tagged build.
+VERSION="${VERSION:-0.0.0-dev}"
+
+# CFBundleVersion (build version) must contain only digits and periods.
+# Derive it from VERSION by stripping any pre-release/build suffix
+# (e.g. "1.2.0-dev" -> "1.2.0").
+BUNDLE_VERSION="$(printf '%s' "$VERSION" | sed -E 's/[^0-9.].*$//')"
+BUNDLE_VERSION="${BUNDLE_VERSION:-0.0.0}"
+
+echo "▶ Building ($BUILD_CONFIG) — version ${VERSION}…"
 cd "$REPO_ROOT"
 
 if [ "$BUILD_CONFIG" = "release" ]; then
@@ -56,9 +73,9 @@ cat > "$BUNDLE/Contents/Info.plist" <<EOF
     <key>CFBundleIdentifier</key>
     <string>com.todos.app</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$BUNDLE_VERSION</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>$VERSION</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

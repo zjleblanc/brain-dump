@@ -1,0 +1,140 @@
+name: Release
+
+# Triggered by pushing a semantic-version tag, e.g.:
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# The tag is the single source of truth for the app version — see
+# docs/RELEASING.md for the full release process and scripts/bundle.sh for
+# how the version is injected into the .app bundle.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, package, and publish release
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $VERSION (tag $TAG)"
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build release .app bundle
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/bundle.sh release
+
+      # --- Optional codesigning (requires repository secrets) -------------
+      # When these secrets are not configured (e.g. forks, early project
+      # life), this step and notarization are skipped and the workflow
+      # still produces a working, unsigned release.
+      - name: Import signing certificate
+        id: signing
+        if: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' }}
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/release-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          rm -f "$CERT_PATH"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Codesign .app bundle
+        if: ${{ steps.signing.outputs.signed == 'true' }}
+        env:
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          codesign --force --deep --sign "$SIGN_IDENTITY" --options runtime Todos.app
+          codesign --verify --verbose Todos.app
+
+      - name: Package .zip
+        run: ditto -c -k --keepParent Todos.app "Todos-${{ steps.version.outputs.version }}.zip"
+
+      - name: Notarize .zip
+        if: ${{ steps.signing.outputs.signed == 'true' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool submit "Todos-${{ steps.version.outputs.version }}.zip" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple Todos.app
+          # Re-zip the stapled bundle so the published artifact carries the staple.
+          rm -f "Todos-${{ steps.version.outputs.version }}.zip"
+          ditto -c -k --keepParent Todos.app "Todos-${{ steps.version.outputs.version }}.zip"
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Package .dmg
+        run: |
+          rm -f "Todos-${{ steps.version.outputs.version }}.dmg"
+          create-dmg \
+            --volname "Todos" \
+            --app-drop-link 400 150 \
+            "Todos-${{ steps.version.outputs.version }}.dmg" \
+            Todos.app || true
+          # create-dmg exits non-zero on benign AppleScript/Finder warnings
+          # in headless CI; fail the step only if the .dmg wasn't produced.
+          test -f "Todos-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+          awk -v ver="${{ steps.version.outputs.version }}" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") > 0) { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > "$NOTES_FILE"
+
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "_No changelog entry found for ${{ steps.version.outputs.version }}._" > "$NOTES_FILE"
+          fi
+
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "Todos-${{ steps.version.outputs.version }}.zip" \
+            "Todos-${{ steps.version.outputs.version }}.dmg" \
+            --title "Todos ${{ steps.version.outputs.version }}" \
+            --notes-file "${{ steps.changelog.outputs.notes_file }}"

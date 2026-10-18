@@ -24,6 +24,18 @@ A native macOS menubar todo list app. Lives in your status bar, stays out of you
 
 No third-party dependencies.
 
+## Installing
+
+Pre-built, versioned downloads (`.zip` and `.dmg`) are published on the
+[Releases page](../../releases) for every tagged version. Grab the latest
+release, open the `.dmg` (or unzip the `.zip`), and drag `Todos.app`
+wherever you like.
+
+If a release isn't codesigned/notarized yet, Gatekeeper will warn on first
+open — right-click `Todos.app` and choose **Open** to bypass it once.
+
+Prefer to build it yourself? See [Build & Run](#build--run) below.
+
 ## Build & Run
 
 ```bash
@@ -98,6 +110,10 @@ todos/
 │       └── ColorHex.swift      # Hex ↔ Color, palette picker
 ├── scripts/
 │   └── bundle.sh               # .app packaging script
+├── .github/workflows/
+│   └── release.yml             # Tag-triggered build + publish to GitHub Releases
+├── docs/
+│   └── RELEASING.md            # Versioning policy + release process
 ├── AGENTS.md                   # Developer and AI-agent instructions
 └── CHANGELOG.md
 ```
@@ -105,3 +121,4 @@ todos/
 ## Contributing
 
 See [AGENTS.md](AGENTS.md) for architecture notes, build commands, and coding conventions.
+See [docs/RELEASING.md](docs/RELEASING.md) for how versioning and releases work.

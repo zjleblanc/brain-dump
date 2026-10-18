@@ -31,7 +31,12 @@ todos/
 │   └── Utilities/
 │       └── ColorHex.swift           # Color↔hex conversion, AppPalette, PalettePickerView
 ├── scripts/
-│   └── bundle.sh                    # Build + package as Todos.app
+│   └── bundle.sh                    # Build + package as Todos.app (version via VERSION env var)
+├── .github/workflows/
+│   └── release.yml                  # Tag-triggered build, package, codesign/notarize, publish
+├── docs/
+│   └── RELEASING.md                 # Versioning policy + release process
+├── CHANGELOG.md                     # Keep a Changelog-style, versioned per release
 └── AGENTS.md                        # This file
 ```
 
@@ -73,6 +78,20 @@ open Todos.app
 3. Package as DMG with `create-dmg` (`brew install create-dmg`)
 
 Or distribute via Homebrew Cask — add `Todos.app.zip` to a tap and write a Cask formula.
+
+## Releasing
+
+Releases are tag-driven via [.github/workflows/release.yml](.github/workflows/release.yml):
+pushing a `vX.Y.Z` tag triggers a macOS runner that builds, bundles,
+optionally codesigns/notarizes, packages a `.zip`/`.dmg`, and publishes a
+GitHub Release with notes pulled from [CHANGELOG.md](CHANGELOG.md).
+
+The version is never hard-coded — `scripts/bundle.sh` reads it from the
+`VERSION` env var (set by CI from the tag) and injects it into
+`Info.plist`. Local dev builds default to `0.0.0-dev`.
+
+See [docs/RELEASING.md](docs/RELEASING.md) for the full process, versioning
+policy, and codesigning/notarization secret setup.
 
 ## Data Storage
 
