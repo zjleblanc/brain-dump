@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1]
+
+### Fixed
+- `Sources/BrainDump/BrainDumpApp.swift` — release builds failed in CI with `static property 'templateImage' is not concurrency-safe because non-'Sendable' type 'NSImage' may have shared mutable state` under Swift 6's strict concurrency checking; marked `BrainIcon.templateImage` `@MainActor`, since it's only ever read from `MenuBarLabel.body` (itself `@MainActor`-isolated)
+- `scripts/bundle.sh` — downloaded `.dmg`/`.zip` releases showed macOS's "is damaged and can't be opened" error instead of the normal "unidentified developer" prompt. `swift build` leaves the raw executable with a bare ad-hoc, linker-applied signature covering only the Mach-O itself; once `bundle.sh` wrapped it in `Info.plist`/`Resources` to form the `.app`, that stale signature's `CodeDirectory` still claimed sealed resources must be present but no `_CodeSignature/CodeResources` seal existed for the assembled bundle, which Gatekeeper treats as invalid once the file is quarantined. The fully assembled bundle is now always re-signed — ad-hoc (`--sign -`) when no Developer ID is configured, or with the real identity otherwise
+
 ## [1.4.0]
 
 ### Added

@@ -105,7 +105,21 @@ printf "APPL????" > "$BUNDLE/Contents/PkgInfo"
 
 echo "▶ Done: $BUNDLE"
 
-# Optional codesign
+# Codesign the assembled bundle.
+#
+# `swift build` leaves the raw executable with an ad-hoc, linker-applied
+# signature that only covers the Mach-O itself (no sealed resources). Once
+# bundle.sh adds Info.plist/Resources around it, that stale signature's
+# CodeDirectory still claims resources must be present but no
+# `_CodeSignature/CodeResources` seal exists for the bundle — Gatekeeper
+# treats this as an invalid signature and reports the app as "damaged" when
+# it's also quarantined (e.g. downloaded from a browser), rather than the
+# normal dismissible "unidentified developer" prompt an unsigned app gets.
+#
+# Always re-sign the full bundle here, even without a paid Developer ID
+# (ad-hoc, identity "-"), so the signature matches the final bundle layout.
+# `--options runtime` (hardened runtime) is only valid/needed with a real
+# Developer ID identity ahead of notarization.
 if [ -n "$SIGN_IDENTITY" ]; then
     echo "▶ Signing with: $SIGN_IDENTITY"
     codesign \
@@ -120,6 +134,10 @@ if [ -n "$SIGN_IDENTITY" ]; then
     echo "  ditto -c -k --keepParent BrainDump.app BrainDump.zip"
     echo "  xcrun notarytool submit BrainDump.zip --keychain-profile <profile> --wait"
     echo "  xcrun stapler staple BrainDump.app"
+else
+    echo "▶ Ad-hoc signing (no Developer ID provided)…"
+    codesign --force --deep --sign - "$BUNDLE"
+    echo "▶ Ad-hoc signed."
 fi
 
 echo ""
