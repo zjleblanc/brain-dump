@@ -36,7 +36,17 @@ release, open the `.dmg` (or unzip the `.zip`), and drag `BrainDump.app`
 wherever you like.
 
 If a release isn't codesigned/notarized yet, Gatekeeper will warn on first
-open — right-click `BrainDump.app` and choose **Open** to bypass it once.
+open ("Apple could not verify ... is free of malware"). To open it anyway:
+
+- **Finder:** right-click (or Control-click) `BrainDump.app` → **Open** →
+  confirm **Open** in the dialog, _or_
+- **System Settings:** Privacy & Security → scroll down to the blocked-app
+  notice → **Open Anyway**, _or_
+- **Terminal:** strip the quarantine flag that triggers the warning:
+
+  ```bash
+  xattr -cr /path/to/BrainDump.app
+  ```
 
 Prefer to build it yourself? See [Build & Run](#build--run) below.
 
