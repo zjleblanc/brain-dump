@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Three-state todo lifecycle — `TodoStatus` (`Sources/BrainDump/Models/TodoItem.swift`) replaces the plain `isCompleted: Bool` with `todo` / `inProgress` / `completed`; `isCompleted`/`isInProgress` remain as computed properties, and legacy `isCompleted` JSON decodes straight into `status` so existing `data.json` files load unchanged
+- In-progress indicator — the row checkbox (`TodoRowView`) shows a half-filled orange circle for in-progress items (vs. an open circle for todo, filled checkmark for completed); tapping the checkbox now cycles todo → in progress → completed → todo (`TodoStore.cycleStatus(_:)`), and the context menu gained explicit "Mark Todo" / "Mark In Progress" / "Mark Complete" actions (`TodoStore.setStatus(_:on:)`)
+- Built-in "WIP" badge — automatically shown next to tags on in-progress rows; purely a view-level decoration driven by status, not a real `Tag`
+- Drag-to-reorder for lists in the sidebar (`ListSidebarView`), wired up to the previously-unused `TodoStore.moveList(from:to:)`
+- Drag-to-reorder for tasks within a specific list — new `TodoItem.sortOrder` field plus `TodoStore.moveItem(from:to:inList:)`; active rows in a selected list sort by `sortOrder` and support drag-and-drop, while the "All" view (and active searches) keep the existing recency sort with reordering disabled, since row order can't be mapped back to a single list's sort positions
+
+### Changed
+- `TodoListPane` extracted from `MainContentView.swift` into its own file (`Sources/BrainDump/Views/TodoListPane.swift`) to keep file length within the project's SwiftLint limit
+- `TodoStore.load()` now also backfills `sortOrder` for items persisted before manual reordering existed, grouped per list and ordered by `createdAt`
+
 ## [1.4.1]
 
 ### Fixed

@@ -9,6 +9,26 @@ struct TodoRowView: View {
 
     private var itemTags: [Tag] { store.tags(for: item) }
 
+    /// Shared accent for the in-progress checkbox glyph and the built-in "WIP" tag,
+    /// so the two read as one consistent signal. Matches `AppPalette`'s Orange.
+    private static let inProgressColor = Color(hex: "#FF9F0A") ?? .orange
+
+    private var checkboxIcon: String {
+        switch item.status {
+        case .todo: return "circle"
+        case .inProgress: return "circle.lefthalf.filled"
+        case .completed: return "checkmark.circle.fill"
+        }
+    }
+
+    private var checkboxColor: Color {
+        switch item.status {
+        case .todo: return .secondary
+        case .inProgress: return Self.inProgressColor
+        case .completed: return .accentColor
+        }
+    }
+
     private var dueDateColor: Color {
         if item.isOverdue { return .red }
         if item.isDueToday { return .orange }
@@ -23,6 +43,18 @@ struct TodoRowView: View {
         return formatter
     }()
 
+    /// Built-in indicator shown automatically on in-progress items — styled like
+    /// `TagBadgeView` but not a real `Tag`; purely a view-level decoration driven by
+    /// `item.status`.
+    private var wipBadge: some View {
+        Text("WIP")
+            .font(.system(size: 10, weight: .medium))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Self.inProgressColor.opacity(0.15)))
+            .foregroundStyle(Self.inProgressColor.opacity(0.9))
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             // Left color accent bar
@@ -32,19 +64,20 @@ struct TodoRowView: View {
                     .frame(width: 3, height: 32)
             }
 
-            // Checkbox
+            // Checkbox — tapping cycles todo -> in progress -> completed -> todo.
             Button {
                 withAnimation(.spring(duration: 0.2)) {
-                    store.toggleCompleted(item)
+                    store.cycleStatus(item)
                 }
             } label: {
-                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                Image(systemName: checkboxIcon)
                     .font(.system(size: 18))
-                    .foregroundStyle(item.isCompleted ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(checkboxColor)
                     .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.bounce, value: item.isCompleted)
+                    .symbolEffect(.bounce, value: item.status)
             }
             .buttonStyle(.plain)
+            .help("Todo \u{2192} In Progress \u{2192} Complete")
 
             // Title + meta
             VStack(alignment: .leading, spacing: 3) {
@@ -54,8 +87,11 @@ struct TodoRowView: View {
                     .foregroundStyle(item.isCompleted ? .secondary : .primary)
                     .lineLimit(2)
 
-                if !itemTags.isEmpty || item.dueDate != nil {
+                if item.isInProgress || !itemTags.isEmpty || item.dueDate != nil {
                     HStack(spacing: 4) {
+                        if item.isInProgress {
+                            wipBadge
+                        }
                         ForEach(itemTags.sorted(by: { $0.name < $1.name })) { tag in
                             TagBadgeView(tag: tag)
                         }
@@ -111,8 +147,20 @@ struct TodoRowView: View {
                     store.delete(item)
                 }
             } else {
-                Button(item.isCompleted ? "Mark Incomplete" : "Mark Complete") {
-                    store.toggleCompleted(item)
+                if item.status != .todo {
+                    Button("Mark Todo") {
+                        withAnimation(.spring(duration: 0.2)) { store.setStatus(.todo, on: item) }
+                    }
+                }
+                if item.status != .inProgress {
+                    Button("Mark In Progress") {
+                        withAnimation(.spring(duration: 0.2)) { store.setStatus(.inProgress, on: item) }
+                    }
+                }
+                if item.status != .completed {
+                    Button("Mark Complete") {
+                        withAnimation(.spring(duration: 0.2)) { store.setStatus(.completed, on: item) }
+                    }
                 }
                 Divider()
                 Button(item.isArchived ? "Restore from Archive" : "Archive") {
@@ -124,7 +172,7 @@ struct TodoRowView: View {
                 }
             }
         }
-        .task(id: item.isCompleted) {
+        .task(id: item.status) {
             // Delayed auto-clear: once a todo is marked complete, wait briefly (so
             // the completed state is visible) then move it into the hidden Cleared
             // bucket. Re-checking complete and marking it incomplete again before

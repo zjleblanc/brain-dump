@@ -64,6 +64,24 @@ final class TodoStore: ObservableObject {
             items[idx].archivedAt = Date()
             needsSave = true
         }
+
+        // Backfill sortOrder for items persisted before manual reordering existed.
+        // Grouped per-list (including the "no list" bucket), ordered by creation date
+        // so existing lists open in their familiar order on first launch. Only runs
+        // when *every* item in a group still has the decode-default 0 — once real
+        // sort orders are assigned (here or via later drag-reorders) this heuristic
+        // naturally stops matching, so it never clobbers a user's manual ordering.
+        let listIDs = Set(items.map { $0.listID })
+        for listID in listIDs {
+            let groupIndices = items.indices.filter { items[$0].listID == listID }
+            guard groupIndices.count > 1, groupIndices.allSatisfy({ items[$0].sortOrder == 0 }) else { continue }
+            let ordered = groupIndices.sorted { items[$0].createdAt < items[$1].createdAt }
+            for (order, idx) in ordered.enumerated() where items[idx].sortOrder != order {
+                items[idx].sortOrder = order
+                needsSave = true
+            }
+        }
+
         if needsSave { save() }
     }
 
@@ -117,7 +135,9 @@ final class TodoStore: ObservableObject {
     // MARK: - Items
 
     func add(_ item: TodoItem) {
-        items.insert(item, at: 0)
+        var newItem = item
+        newItem.sortOrder = items.filter { $0.listID == item.listID }.count
+        items.insert(newItem, at: 0)
         save()
     }
 
@@ -133,12 +153,51 @@ final class TodoStore: ObservableObject {
         save()
     }
 
-    func toggleCompleted(_ item: TodoItem) {
-        if let idx = items.firstIndex(where: { $0.id == item.id }) {
-            items[idx].isCompleted.toggle()
-            items[idx].completedAt = items[idx].isCompleted ? Date() : nil
-            save()
+    /// Advances an item through its lifecycle: todo -> in progress -> completed ->
+    /// (back to) todo. Used by the row checkbox for a single smooth tap-to-advance
+    /// interaction.
+    func cycleStatus(_ item: TodoItem) {
+        let next: TodoStatus
+        switch item.status {
+        case .todo: next = .inProgress
+        case .inProgress: next = .completed
+        case .completed: next = .todo
         }
+        setStatus(next, on: item)
+    }
+
+    /// Sets an item to an explicit status, e.g. from the row context menu.
+    func setStatus(_ status: TodoStatus, on item: TodoItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].status = status
+        items[idx].completedAt = status == .completed ? Date() : nil
+        // Leaving the completed state (e.g. back to todo/in-progress) should also
+        // un-clear the item so it reappears in the normal active list.
+        if status != .completed { items[idx].clearedAt = nil }
+        save()
+    }
+
+    /// Legacy two-state toggle kept for call sites that only care about done/not
+    /// done; treats any non-completed state as "not done".
+    func toggleCompleted(_ item: TodoItem) {
+        setStatus(item.isCompleted ? .todo : .completed, on: item)
+    }
+
+    /// Reorders an item among the *active* (not completed, not archived) items that
+    /// share `listID`, re-indexing `sortOrder` for that group. `source`/`destination`
+    /// are indices into that same active-only, sortOrder-sorted subset — i.e. exactly
+    /// the rows `TodoListPane` renders for a specific list — so they line up with
+    /// what drag-and-drop in the UI reports. No-op across different lists —
+    /// reordering is scoped to a single list (disabled entirely in the "All" view).
+    func moveItem(from source: IndexSet, to destination: Int, inList listID: UUID?) {
+        var group = items.indices
+            .filter { items[$0].listID == listID && !items[$0].isCompleted && !items[$0].isArchived }
+            .sorted { items[$0].sortOrder < items[$1].sortOrder }
+        group.move(fromOffsets: source, toOffset: destination)
+        for (order, idx) in group.enumerated() {
+            items[idx].sortOrder = order
+        }
+        save()
     }
 
     func toggleArchived(_ item: TodoItem) {

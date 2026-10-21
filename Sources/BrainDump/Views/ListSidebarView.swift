@@ -11,6 +11,26 @@ struct ListSidebarView: View {
     @Binding var showingArchive: Bool
     @Binding var confirmingDeleteList: TodoList?
 
+    private var sortedLists: [TodoList] { store.lists.sorted(by: { $0.sortOrder < $1.sortOrder }) }
+
+    /// Drag-to-reorder for user-created lists (the "All" row above is fixed and not
+    /// part of this draggable group).
+    private func handleListDrop(_ droppedIDs: [String], onto list: TodoList) -> Bool {
+        let lists = sortedLists
+        guard let draggedID = droppedIDs.first.flatMap(UUID.init(uuidString:)),
+              let sourceIndex = lists.firstIndex(where: { $0.id == draggedID }),
+              let destIndex = lists.firstIndex(where: { $0.id == list.id }),
+              sourceIndex != destIndex
+        else { return false }
+        withAnimation(.spring(duration: 0.25)) {
+            store.moveList(
+                from: IndexSet(integer: sourceIndex),
+                to: destIndex > sourceIndex ? destIndex + 1 : destIndex
+            )
+        }
+        return true
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
@@ -25,7 +45,7 @@ struct ListSidebarView: View {
 
                 Divider().padding(.vertical, 2)
 
-                ForEach(store.lists.sorted(by: { $0.sortOrder < $1.sortOrder })) { list in
+                ForEach(sortedLists) { list in
                     listRow(
                         label: list.name,
                         systemIcon: "list.bullet",
@@ -41,6 +61,8 @@ struct ListSidebarView: View {
                             withAnimation(.spring(duration: 0.3)) { confirmingDeleteList = list }
                         }
                     }
+                    .draggable(list.id.uuidString)
+                    .dropDestination(for: String.self) { droppedIDs, _ in handleListDrop(droppedIDs, onto: list) }
                 }
             }
             .padding(.vertical, 6)
