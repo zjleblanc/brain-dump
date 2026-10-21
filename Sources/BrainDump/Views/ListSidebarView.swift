@@ -1,7 +1,17 @@
 import SwiftUI
 
 struct ListSidebarView: View {
+    final class ViewState: ObservableObject {
+        /// Toggled by the bottom-toolbar reorder button; shows a leading grip handle
+        /// on each list row (the drag gesture itself is always available).
+        @Published var isEditing = false
+        /// The list currently being dragged over; drives the drop-insertion
+        /// indicator shown above that row.
+        @Published var dragOverListID: UUID?
+    }
+
     @EnvironmentObject private var store: TodoStore
+    @StateObject private var vs = ViewState()
     @Binding var selectedListID: UUID?
     @Binding var showingAddList: Bool
     @Binding var editingList: TodoList?
@@ -28,7 +38,27 @@ struct ListSidebarView: View {
                 to: destIndex > sourceIndex ? destIndex + 1 : destIndex
             )
         }
+        vs.dragOverListID = nil
         return true
+    }
+
+    /// Updates `vs.dragOverListID` from a row's `isTargeted` callback, ignoring a
+    /// stale `false` for a different row than the one currently highlighted (can
+    /// arrive after the next row's `true`, depending on drag timing).
+    private func setDragTarget(_ id: UUID, isTargeted: Bool) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            vs.dragOverListID = isTargeted ? id : (vs.dragOverListID == id ? nil : vs.dragOverListID)
+        }
+    }
+
+    /// A thin accent-colored bar shown directly above a row while something is
+    /// being dragged over it, indicating where the dropped item will land.
+    private var dropIndicator: some View {
+        Rectangle()
+            .fill(Color.accentColor)
+            .frame(height: 2)
+            .padding(.horizontal, 8)
+            .transition(.opacity)
     }
 
     var body: some View {
@@ -46,13 +76,17 @@ struct ListSidebarView: View {
                 Divider().padding(.vertical, 2)
 
                 ForEach(sortedLists) { list in
+                    if vs.dragOverListID == list.id {
+                        dropIndicator
+                    }
                     listRow(
                         label: list.name,
                         systemIcon: "list.bullet",
                         colorHex: list.colorHex,
                         emoji: list.emoji,
                         count: store.activeCount(in: list),
-                        isSelected: selectedListID == list.id
+                        isSelected: selectedListID == list.id,
+                        showGripHandle: true
                     ) { selectedListID = list.id }
                     .contextMenu {
                         Button("Edit") { withAnimation(.spring(duration: 0.3)) { editingList = list } }
@@ -62,7 +96,11 @@ struct ListSidebarView: View {
                         }
                     }
                     .draggable(list.id.uuidString)
-                    .dropDestination(for: String.self) { droppedIDs, _ in handleListDrop(droppedIDs, onto: list) }
+                    .dropDestination(for: String.self) { droppedIDs, _ in
+                        handleListDrop(droppedIDs, onto: list)
+                    } isTargeted: { targeted in
+                        setDragTarget(list.id, isTargeted: targeted)
+                    }
                 }
             }
             .padding(.vertical, 6)
@@ -84,6 +122,8 @@ struct ListSidebarView: View {
 
                 Spacer()
 
+                reorderButton
+
                 Button {
                     withAnimation(.spring(duration: 0.3)) { showingArchive = true }
                 } label: {
@@ -100,6 +140,20 @@ struct ListSidebarView: View {
         }
     }
 
+    /// Toggles `vs.isEditing`, showing a leading grip handle on each list row as a
+    /// discoverable affordance for the always-available drag-to-reorder gesture.
+    private var reorderButton: some View {
+        Button {
+            withAnimation(.spring(duration: 0.2)) { vs.isEditing.toggle() }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 14))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(vs.isEditing ? Color.accentColor : .secondary)
+        .help(vs.isEditing ? "Done Reordering" : "Reorder Lists")
+    }
+
     // swiftlint:disable:next function_parameter_count
     private func listRow(
         label: String,
@@ -108,263 +162,53 @@ struct ListSidebarView: View {
         emoji: String?,
         count: Int,
         isSelected: Bool,
+        showGripHandle: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let emoji, !emoji.isEmpty {
-                    Text(emoji)
-                        .font(.system(size: 13))
-                        .frame(width: 16, height: 16)
-                } else if let hex = colorHex, let color = Color(hex: hex) {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 8, height: 8)
-                        .frame(width: 16, height: 16)
-                } else {
-                    Image(systemName: systemIcon)
-                        .font(.system(size: 11))
-                        .foregroundStyle(isSelected ? .white : .secondary)
-                        .frame(width: 16, height: 16)
-                }
-                Text(label)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                    .lineLimit(1)
-                Spacer()
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 6).fill(Color.accentColor)
-                } else {
-                    RoundedRectangle(cornerRadius: 6).fill(Color.clear)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? .white : .primary)
-    }
-}
-
-// MARK: - New list sheet
-
-struct ListEditSheet: View {
-    @Binding var name: String
-    @Binding var colorHex: String?
-    @Binding var emoji: String?
-    var title: String
-    var onSave: () -> Void
-    var onDismiss: () -> Void
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                TextField("List name", text: $name)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { save() }
-
-                HStack(alignment: .top, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Emoji")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        EmojiPickerView(selectedEmoji: $emoji)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Color")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        SpectrumColorPickerView(selectedHex: $colorHex)
-                        Text("Used when no emoji is set")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(16)
-        }
-        .frame(width: 440, height: 360)
-        .safeAreaInset(edge: .top) {
-            HStack {
-                Button("Cancel") { onDismiss() }.keyboardShortcut(.cancelAction)
-                Spacer()
-                Text(title).font(.headline)
-                Spacer()
-                Button("Save") { save() }.keyboardShortcut(.defaultAction).disabled(name.isEmpty)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
-        }
-    }
-
-    private func save() {
-        guard !name.isEmpty else { return }
-        onSave()
-        onDismiss()
-    }
-}
-
-// MARK: - Edit existing list sheet
-
-struct ListEditSheetCopy: View {
-    final class ViewState: ObservableObject {
-        @Published var draft: TodoList
-
-        init(list: TodoList) { draft = list }
-    }
-
-    @StateObject private var vs: ViewState
-
-    var onSave: (TodoList) -> Void
-    var onDismiss: () -> Void
-    var onRequestDelete: () -> Void
-
-    init(
-        list: TodoList,
-        onSave: @escaping (TodoList) -> Void,
-        onDismiss: @escaping () -> Void,
-        onRequestDelete: @escaping () -> Void
-    ) {
-        _vs = StateObject(wrappedValue: ViewState(list: list))
-        self.onSave = onSave
-        self.onDismiss = onDismiss
-        self.onRequestDelete = onRequestDelete
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                TextField("List name", text: $vs.draft.name)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack(alignment: .top, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Emoji")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        EmojiPickerView(selectedEmoji: $vs.draft.emoji)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Color")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        SpectrumColorPickerView(selectedHex: $vs.draft.colorHex)
-                        Text("Used when no emoji is set")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(16)
-        }
-        .frame(width: 440, height: 360)
-        .safeAreaInset(edge: .top) {
-            HStack {
-                Text("Edit List").font(.headline)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Button("Delete List", role: .destructive) {
-                    onRequestDelete()
-                }
-                .foregroundStyle(.red)
-
-                Spacer()
-
-                Button("Done") {
-                    onSave(vs.draft)
-                    onDismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
-        }
-    }
-}
-
-// MARK: - Delete list confirmation
-
-/// Shown before a list is deleted since deletion also permanently removes every
-/// todo assigned to that list (see `TodoStore.delete(_:)`).
-struct ListDeleteConfirmationView: View {
-    @EnvironmentObject private var store: TodoStore
-    let list: TodoList
-    var onConfirm: () -> Void
-    var onCancel: () -> Void
-
-    private var affectedItems: [TodoItem] {
-        store.items.filter { $0.listID == list.id }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Delete “\(list.name)”?").font(.headline)
-
-            if affectedItems.isEmpty {
-                Text("This list has no todos in it.")
+        // Not a `Button`: on macOS a Button's gesture recognizer claims mouse-down
+        // before the call site's `.draggable()` can start a drag, breaking reorder.
+        HStack(spacing: 6) {
+            if showGripHandle && vs.isEditing {
+                Image(systemName: "line.3.horizontal")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(
-                    "This list contains \(affectedItems.count) "
-                        + (affectedItems.count == 1 ? "todo" : "todos")
-                        + ". Deleting the list will also permanently delete "
-                        + (affectedItems.count == 1 ? "it:" : "them:")
-                )
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(affectedItems.prefix(5)) { item in
-                        Text("•  \(item.title)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    if affectedItems.count > 5 {
-                        Text("…and \(affectedItems.count - 5) more")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
             }
-
-            HStack {
-                Button("Cancel") { onCancel() }.keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Delete List", role: .destructive) { onConfirm() }
-                    .foregroundStyle(.red)
+            if let emoji, !emoji.isEmpty {
+                Text(emoji)
+                    .font(.system(size: 13))
+                    .frame(width: 16, height: 16)
+            } else if let hex = colorHex, let color = Color(hex: hex) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: systemIcon)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isSelected ? .white : .secondary)
+                    .frame(width: 16, height: 16)
+            }
+            Text(label)
+                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                .lineLimit(1)
+            Spacer()
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
             }
         }
-        .padding(20)
-        .frame(width: 320)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 6).fill(Color.accentColor)
+            } else {
+                RoundedRectangle(cornerRadius: 6).fill(Color.clear)
+            }
+        }
+        .contentShape(Rectangle())
+        .foregroundStyle(isSelected ? .white : .primary)
+        .simultaneousGesture(TapGesture().onEnded(action))
     }
 }

@@ -18,6 +18,11 @@ struct MainContentView: View {
         @Published var showingSettings: Bool = false
         @Published var statusFilter: Set<TodoStatus> = [.todo, .inProgress]
         @Published var confirmingDeleteList: TodoList?
+        /// Drives the leading grip handle on task rows; toggled from the reorder
+        /// button hosted in `statusFilterBar`. Mirrors `ListSidebarView`'s
+        /// `isEditing`, kept here (rather than inside `TodoListPane`) since the
+        /// toggle button lives in this view's toolbar, not that one's.
+        @Published var isEditingTasks = false
     }
 
     @StateObject private var vs = ViewState()
@@ -72,7 +77,8 @@ struct MainContentView: View {
                     TodoListPane(
                         selectedListID: vs.selectedListID,
                         searchText: vs.searchText,
-                        statusFilter: vs.statusFilter
+                        statusFilter: vs.statusFilter,
+                        isEditing: $vs.isEditingTasks
                     ) { vs.selectedItem = $0 }
 
                     Divider()
@@ -82,154 +88,171 @@ struct MainContentView: View {
         }
         .frame(width: 560, height: 480)
         .overlay {
-            if let item = vs.selectedItem {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } },
-                    content: {
-                        TodoDetailView(
-                            item: item,
-                            onSave: { updated in store.update(updated) },
-                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } }
-                        )
-                        .environmentObject(store)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if vs.showingAddForm {
-                BottomSheetContainer(
-                    onEscape: {
-                        withAnimation(.spring(duration: 0.3)) {
-                            vs.showingAddForm = false
-                            vs.newTodoTitle = ""
-                        }
-                    },
-                    content: {
-                        AddTodoSheet(
-                            initialTitle: vs.newTodoTitle,
-                            defaultListID: vs.selectedListID,
-                            onSave: { item in
-                                store.add(item)
-                                withAnimation(.spring(duration: 0.3)) {
-                                    vs.showingAddForm = false
-                                    vs.newTodoTitle = ""
-                                }
-                            },
-                            onDismiss: {
-                                withAnimation(.spring(duration: 0.3)) {
-                                    vs.showingAddForm = false
-                                    vs.newTodoTitle = ""
-                                }
-                            }
-                        )
-                        .environmentObject(store)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if vs.showingAddList {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } },
-                    content: {
-                        ListEditSheet(
-                            name: $vs.newListName,
-                            colorHex: $vs.newListColorHex,
-                            emoji: $vs.newListEmoji,
-                            title: "New List",
-                            onSave: {
-                                store.add(TodoList(
-                                    name: vs.newListName,
-                                    colorHex: vs.newListColorHex,
-                                    emoji: vs.newListEmoji
-                                ))
-                            },
-                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } }
-                        )
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if let list = vs.editingList {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
-                    content: {
-                        ListEditSheetCopy(
-                            list: list,
-                            onSave: { updated in store.update(updated) },
-                            onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
-                            onRequestDelete: {
-                                withAnimation(.spring(duration: 0.3)) {
-                                    vs.editingList = nil
-                                    vs.confirmingDeleteList = list
-                                }
-                            }
-                        )
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if vs.showingArchive {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } },
-                    content: {
-                        ArchiveView(onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } })
-                            .environmentObject(store)
-                            .frame(height: 440)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if vs.showingSettings {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false } },
-                    content: {
-                        SettingsView(onDismiss: {
-                            withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false }
-                        })
-                        .environmentObject(store)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            } else if let list = vs.confirmingDeleteList {
-                BottomSheetContainer(
-                    onEscape: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } },
-                    content: {
-                        ListDeleteConfirmationView(
-                            list: list,
-                            onConfirm: {
-                                if vs.selectedListID == list.id { vs.selectedListID = nil }
-                                store.delete(list)
-                                withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil }
-                            },
-                            onCancel: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } }
-                        )
-                        .environmentObject(store)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .bottom).combined(with: .opacity)
-                ))
-            }
+            activeSheetOverlay
         }
     }
+}
 
-    // MARK: Toolbar
+// MARK: - Modal sheet overlay
 
-    private var toolbar: some View {
+/// The single `.overlay` content for every bottom-sheet-presented modal in
+/// `MainContentView` — extracted into its own extension (rather than a computed
+/// property on the struct) purely to keep `MainContentView`'s own body under
+/// SwiftLint's `type_body_length` limit; behaviorally identical to being inline.
+/// Members here are `fileprivate` (not `private`) since `body`, on the struct
+/// declaration above, needs to call into them.
+extension MainContentView {
+    @ViewBuilder
+    fileprivate var activeSheetOverlay: some View {
+        if let item = vs.selectedItem {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } },
+                content: {
+                    TodoDetailView(
+                        item: item,
+                        onSave: { updated in store.update(updated) },
+                        onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.selectedItem = nil } }
+                    )
+                    .environmentObject(store)
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if vs.showingAddForm {
+            BottomSheetContainer(
+                onEscape: {
+                    withAnimation(.spring(duration: 0.3)) {
+                        vs.showingAddForm = false
+                        vs.newTodoTitle = ""
+                    }
+                },
+                content: {
+                    AddTodoSheet(
+                        initialTitle: vs.newTodoTitle,
+                        defaultListID: vs.selectedListID,
+                        onSave: { item in
+                            store.add(item)
+                            withAnimation(.spring(duration: 0.3)) {
+                                vs.showingAddForm = false
+                                vs.newTodoTitle = ""
+                            }
+                        },
+                        onDismiss: {
+                            withAnimation(.spring(duration: 0.3)) {
+                                vs.showingAddForm = false
+                                vs.newTodoTitle = ""
+                            }
+                        }
+                    )
+                    .environmentObject(store)
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if vs.showingAddList {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } },
+                content: {
+                    ListEditSheet(
+                        name: $vs.newListName,
+                        colorHex: $vs.newListColorHex,
+                        emoji: $vs.newListEmoji,
+                        title: "New List",
+                        onSave: {
+                            store.add(TodoList(
+                                name: vs.newListName,
+                                colorHex: vs.newListColorHex,
+                                emoji: vs.newListEmoji
+                            ))
+                        },
+                        onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingAddList = false } }
+                    )
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if let list = vs.editingList {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
+                content: {
+                    ListEditSheetCopy(
+                        list: list,
+                        onSave: { updated in store.update(updated) },
+                        onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.editingList = nil } },
+                        onRequestDelete: {
+                            withAnimation(.spring(duration: 0.3)) {
+                                vs.editingList = nil
+                                vs.confirmingDeleteList = list
+                            }
+                        }
+                    )
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if vs.showingArchive {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } },
+                content: {
+                    ArchiveView(onDismiss: { withAnimation(.spring(duration: 0.3)) { vs.showingArchive = false } })
+                        .environmentObject(store)
+                        .frame(height: 440)
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if vs.showingSettings {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false } },
+                content: {
+                    SettingsView(onDismiss: {
+                        withAnimation(.spring(duration: 0.3)) { vs.showingSettings = false }
+                    })
+                    .environmentObject(store)
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        } else if let list = vs.confirmingDeleteList {
+            BottomSheetContainer(
+                onEscape: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } },
+                content: {
+                    ListDeleteConfirmationView(
+                        list: list,
+                        onConfirm: {
+                            if vs.selectedListID == list.id { vs.selectedListID = nil }
+                            store.delete(list)
+                            withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil }
+                        },
+                        onCancel: { withAnimation(.spring(duration: 0.3)) { vs.confirmingDeleteList = nil } }
+                    )
+                    .environmentObject(store)
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .bottom).combined(with: .opacity)
+            ))
+        }
+    }
+}
+
+// MARK: - Toolbar
+
+extension MainContentView {
+    fileprivate var toolbar: some View {
         ZStack {
             // Centered regardless of the width of the leading/trailing buttons.
             HStack(spacing: 6) {
@@ -265,26 +288,53 @@ struct MainContentView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
+}
 
-    // MARK: Status filter bar
+// MARK: - Status filter bar
 
+extension MainContentView {
     /// Multi-select filter over `TodoStatus`, replacing the old binary "View
     /// Completed" toggle. Defaults to Todo + In Progress (set in `ViewState`); any
     /// combination may be selected, but at least one status must remain active so
-    /// the list is never forced empty by the filter itself.
-    private var statusFilterBar: some View {
+    /// the list is never forced empty by the filter itself. Also hosts the task
+    /// reorder-mode toggle (hidden entirely when reordering isn't supported, e.g.
+    /// the "All" view — see `TodoListPane.reorderEnabled`).
+    fileprivate var statusFilterBar: some View {
         HStack(spacing: 6) {
             Spacer()
             ForEach([TodoStatus.todo, .inProgress, .completed], id: \.self) { status in
                 statusFilterPill(status)
             }
             Spacer()
+            if taskReorderEnabled {
+                taskReorderButton
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
     }
 
-    private func statusFilterLabel(_ status: TodoStatus) -> String {
+    fileprivate var taskReorderEnabled: Bool {
+        TodoListPane.reorderEnabled(
+            selectedListID: vs.selectedListID,
+            searchText: vs.searchText,
+            statusFilter: vs.statusFilter
+        )
+    }
+
+    fileprivate var taskReorderButton: some View {
+        Button {
+            withAnimation(.spring(duration: 0.2)) { vs.isEditingTasks.toggle() }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 14))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(vs.isEditingTasks ? Color.accentColor : .secondary)
+        .help(vs.isEditingTasks ? "Done Reordering" : "Reorder Tasks")
+    }
+
+    fileprivate func statusFilterLabel(_ status: TodoStatus) -> String {
         switch status {
         case .todo: return "Todo"
         case .inProgress: return "In Progress"
@@ -292,7 +342,7 @@ struct MainContentView: View {
         }
     }
 
-    private func statusFilterPill(_ status: TodoStatus) -> some View {
+    fileprivate func statusFilterPill(_ status: TodoStatus) -> some View {
         let isSelected = vs.statusFilter.contains(status)
         return Button {
             withAnimation(.spring(duration: 0.2)) {
@@ -318,7 +368,7 @@ struct MainContentView: View {
         .buttonStyle(.plain)
     }
 
-    private func addTodo() {
+    fileprivate func addTodo() {
         let title = vs.newTodoTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
         let item = TodoItem(title: title, listID: vs.selectedListID)

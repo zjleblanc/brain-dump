@@ -3,13 +3,25 @@ import SwiftUI
 // MARK: - Filtered todo list pane
 
 struct TodoListPane: View {
+    final class ViewState: ObservableObject {
+        /// The item currently being dragged over; drives the drop-insertion
+        /// indicator shown above that row.
+        @Published var dragOverItemID: UUID?
+    }
+
     @EnvironmentObject private var store: TodoStore
+    @StateObject private var vs = ViewState()
     let selectedListID: UUID?
     let searchText: String
     /// Multi-select filter over `TodoStatus` — only items whose status is a member
     /// of this set are shown, split into a Todo / In Progress / Completed section.
     /// Defaults to Todo + In Progress upstream in `MainContentView.ViewState`.
     var statusFilter: Set<TodoStatus> = [.todo, .inProgress]
+    /// Driven by the reorder-mode toggle hosted in `MainContentView`'s
+    /// `statusFilterBar` (not this view) — shows a leading grip handle on each
+    /// active row as a visual affordance for the (already-available)
+    /// drag-to-reorder gesture. Mirrors `ListSidebarView`'s `isEditing`.
+    @Binding var isEditing: Bool
     var onSelect: (TodoItem) -> Void
 
     private var baseItems: [TodoItem] {
@@ -41,7 +53,16 @@ struct TodoListPane: View {
     /// what's displayed, so hiding one of those statuses would desync the dragged
     /// row's on-screen index from the store's index.
     private var reorderEnabled: Bool {
-        isSingleListView && searchText.isEmpty && statusFilter.isSuperset(of: [.todo, .inProgress])
+        Self.reorderEnabled(selectedListID: selectedListID, searchText: searchText, statusFilter: statusFilter)
+    }
+
+    /// Standalone form of `reorderEnabled` so `MainContentView` — which hosts the
+    /// reorder-mode toggle in its `statusFilterBar`, not this view — can decide
+    /// whether to show that button (hidden entirely in the "All" view, while
+    /// searching, or while Todo/In Progress is filtered out) without needing a
+    /// `TodoListPane` instance.
+    static func reorderEnabled(selectedListID: UUID?, searchText: String, statusFilter: Set<TodoStatus>) -> Bool {
+        selectedListID != nil && searchText.isEmpty && statusFilter.isSuperset(of: [.todo, .inProgress])
     }
 
     /// Items matching the selected statuses, before splitting into per-status
@@ -64,14 +85,6 @@ struct TodoListPane: View {
         return filtered.sorted { $0.createdAt > $1.createdAt }
     }
 
-    private var todoItems: [TodoItem] {
-        nonCompletedSorted.filter { $0.status == .todo }
-    }
-
-    private var inProgressItems: [TodoItem] {
-        nonCompletedSorted.filter { $0.status == .inProgress }
-    }
-
     /// Completed tasks, whether still within the auto-clear delay window or already
     /// cleared — both are "completed tasks" from the user's perspective and are
     /// shown/hidden together via `statusFilter`.
@@ -86,26 +99,19 @@ struct TodoListPane: View {
     }
 
     var body: some View {
-        if todoItems.isEmpty && inProgressItems.isEmpty && completedItems.isEmpty {
+        if nonCompletedSorted.isEmpty && completedItems.isEmpty {
             emptyState
         } else {
             ScrollView {
                 LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    // Todo — no header, matching the old unlabeled "active" section.
-                    ForEach(todoItems) { item in
+                    // Todo + In Progress — no header; the checkbox glyph (empty
+                    // circle vs. half-filled) already distinguishes the two states.
+                    ForEach(nonCompletedSorted) { item in
+                        if vs.dragOverItemID == item.id {
+                            dropIndicator
+                        }
                         activeRow(item)
                         Divider()
-                    }
-
-                    if !inProgressItems.isEmpty {
-                        Section {
-                            ForEach(inProgressItems) { item in
-                                activeRow(item)
-                                Divider()
-                            }
-                        } header: {
-                            sectionHeader("In Progress", count: inProgressItems.count)
-                        }
                     }
 
                     if !completedItems.isEmpty {
@@ -127,6 +133,16 @@ struct TodoListPane: View {
         }
     }
 
+    /// A thin accent-colored bar shown directly above a row while something is
+    /// being dragged over it, indicating where the dropped item will land.
+    private var dropIndicator: some View {
+        Rectangle()
+            .fill(Color.accentColor)
+            .frame(height: 2)
+            .padding(.horizontal, 12)
+            .transition(.opacity)
+    }
+
     private func sectionHeader(_ title: String, count: Int) -> some View {
         HStack {
             Text("\(title) · \(count)")
@@ -141,19 +157,43 @@ struct TodoListPane: View {
 
     /// An active row, wrapped with drag-to-reorder support when `reorderEnabled` —
     /// dragging one row onto another moves it to that position within the list.
+    /// Gains a leading grip handle while `isEditing`, matching `ListSidebarView`'s
+    /// row treatment.
     @ViewBuilder
     private func activeRow(_ item: TodoItem) -> some View {
-        let row = TodoRowView(item: item) { onSelect(item) }
+        let row = HStack(spacing: 0) {
+            if reorderEnabled && isEditing {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 10)
+            }
+            TodoRowView(item: item) { onSelect(item) }
+        }
         if reorderEnabled {
             row
                 .draggable(item.id.uuidString)
-                .dropDestination(for: String.self) { droppedIDs, _ in handleDrop(droppedIDs, onto: item) }
+                .dropDestination(for: String.self) { droppedIDs, _ in
+                    handleDrop(droppedIDs, onto: item)
+                } isTargeted: { targeted in
+                    setDragTarget(item.id, isTargeted: targeted)
+                }
         } else {
             row
         }
     }
 
+    /// Updates `vs.dragOverItemID` from a row's `isTargeted` callback, ignoring a
+    /// stale `false` for a different row than the one currently highlighted (can
+    /// arrive after the next row's `true`, depending on drag timing).
+    private func setDragTarget(_ id: UUID, isTargeted: Bool) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            vs.dragOverItemID = isTargeted ? id : (vs.dragOverItemID == id ? nil : vs.dragOverItemID)
+        }
+    }
+
     private func handleDrop(_ droppedIDs: [String], onto item: TodoItem) -> Bool {
+        vs.dragOverItemID = nil
         guard let draggedID = droppedIDs.first.flatMap(UUID.init(uuidString:)),
               let sourceIndex = nonCompletedSorted.firstIndex(where: { $0.id == draggedID }),
               let destIndex = nonCompletedSorted.firstIndex(where: { $0.id == item.id }),

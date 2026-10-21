@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.4]
+
+### Changed
+- Removed "In Progress" section header; in-progress items now interleave with todos in the main list, distinguished by their half-filled checkbox style and WIP badge
+- Unified reorder-mode experience for lists and tasks, with a shared toggle button and visual grip handles
+- Task reorder button moved to the status filter bar and hidden when reordering isn't supported (e.g. searching or viewing "All")
+- Task color bar indicator moved to the right edge of the row for a cleaner leading edge
+
+### Fixed
+- Fixed drag-to-reorder on macOS by swapping exclusive tap gestures for simultaneous ones, resolving a conflict where the button/row would capture clicks before a drag could start
+- Added a visual drop indicator (a horizontal bar) during reordering to show exactly where an item will land
+
+### Refactored
+- Extracted list-edit and deletion dialogs from `ListSidebarView.swift` to a new `ListEditSheets.swift` file
+- Restructured `MainContentView.swift` into extensions to comply with file-length and type-body-length lint rules
+
 ## [1.4.3]
 
 ### Added

@@ -137,9 +137,9 @@ struct TodoRowView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 12)
-        .overlay(alignment: .leading) {
-            // Left color accent bar — an overlay (not an HStack child) so it adds
-            // zero width/height to the row; rows with and without a color stay
+        .overlay(alignment: .trailing) {
+            // Right-edge color accent bar — an overlay (not an HStack child) so it
+            // adds zero width/height to the row; rows with and without a color stay
             // the exact same size.
             if let hex = item.colorHex, let color = Color(hex: hex) {
                 RoundedRectangle(cornerRadius: 2)
@@ -149,7 +149,12 @@ struct TodoRowView: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { withAnimation(.spring(duration: 0.3)) { onTap?() } }
+        // `.simultaneousGesture(TapGesture())` rather than `.onTapGesture` — the
+        // latter claims exclusive priority over the gesture arena, which silently
+        // defeats the `.draggable()` that `TodoListPane` attaches to this row for
+        // drag-to-reorder. Simultaneous gestures don't claim exclusivity, so both
+        // the tap-to-open and the drag can be recognized.
+        .simultaneousGesture(TapGesture().onEnded { withAnimation(.spring(duration: 0.3)) { onTap?() } })
         .contextMenu {
             if item.isCleared {
                 Button("Restore") { onRestore?() }
