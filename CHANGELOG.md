@@ -4,6 +4,7 @@
 
 ### Changed
 - Task color accent bar (`TodoRowView`) now renders as a leading-edge `.overlay` on the row instead of an `HStack` child, so it no longer forces a taller minimum height or shifts content right by its width — rows with and without a color are now the exact same size
+- Replaced the binary "View Completed" footer toggle with a multi-select status filter: `MainContentView.ViewState.statusFilter: Set<TodoStatus>` (defaulting to Todo + In Progress) backs three pill buttons — Todo / In Progress / Completed — that each toggle membership, with at least one status always kept selected so the list can't be filtered to nothing. `TodoListPane` now takes `statusFilter` instead of `showCompleted` and groups matching items into Todo (unlabeled, as before) / In Progress / Completed sections, each with its own header except Todo; drag-to-reorder is now also gated on both Todo and In Progress being selected, since `TodoStore.moveItem` always reindexes against the full non-completed group regardless of which statuses are currently shown
 
 ## [1.4.2]
 

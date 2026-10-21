@@ -16,7 +16,7 @@ struct MainContentView: View {
         @Published var newListEmoji: String?
         @Published var showingAddForm: Bool = false
         @Published var showingSettings: Bool = false
-        @Published var showCompleted: Bool = false
+        @Published var statusFilter: Set<TodoStatus> = [.todo, .inProgress]
         @Published var confirmingDeleteList: TodoList?
     }
 
@@ -72,11 +72,11 @@ struct MainContentView: View {
                     TodoListPane(
                         selectedListID: vs.selectedListID,
                         searchText: vs.searchText,
-                        showCompleted: vs.showCompleted
+                        statusFilter: vs.statusFilter
                     ) { vs.selectedItem = $0 }
 
                     Divider()
-                    viewCompletedBar
+                    statusFilterBar
                 }
             }
         }
@@ -266,24 +266,54 @@ struct MainContentView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: View Completed bar
+    // MARK: Status filter bar
 
-    private var viewCompletedBar: some View {
-        Button {
-            withAnimation(.spring(duration: 0.25)) { vs.showCompleted.toggle() }
-        } label: {
-            HStack(spacing: 8) {
-                Spacer()
-                Image(systemName: vs.showCompleted ? "eye.fill" : "eye.slash")
-                    .font(.system(size: 14))
-                    .foregroundStyle(vs.showCompleted ? Color.accentColor : .secondary)
-                Text(vs.showCompleted ? "Hide Completed" : "View Completed")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+    /// Multi-select filter over `TodoStatus`, replacing the old binary "View
+    /// Completed" toggle. Defaults to Todo + In Progress (set in `ViewState`); any
+    /// combination may be selected, but at least one status must remain active so
+    /// the list is never forced empty by the filter itself.
+    private var statusFilterBar: some View {
+        HStack(spacing: 6) {
+            Spacer()
+            ForEach([TodoStatus.todo, .inProgress, .completed], id: \.self) { status in
+                statusFilterPill(status)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    private func statusFilterLabel(_ status: TodoStatus) -> String {
+        switch status {
+        case .todo: return "Todo"
+        case .inProgress: return "In Progress"
+        case .completed: return "Completed"
+        }
+    }
+
+    private func statusFilterPill(_ status: TodoStatus) -> some View {
+        let isSelected = vs.statusFilter.contains(status)
+        return Button {
+            withAnimation(.spring(duration: 0.2)) {
+                if isSelected {
+                    // Keep at least one status selected so the filter can't hide
+                    // every item.
+                    guard vs.statusFilter.count > 1 else { return }
+                    vs.statusFilter.remove(status)
+                } else {
+                    vs.statusFilter.insert(status)
+                }
+            }
+        } label: {
+            Text(statusFilterLabel(status))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isSelected ? Color.white : .secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
+                )
         }
         .buttonStyle(.plain)
     }

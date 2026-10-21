@@ -6,9 +6,10 @@ struct TodoListPane: View {
     @EnvironmentObject private var store: TodoStore
     let selectedListID: UUID?
     let searchText: String
-    /// Open (active) tasks are always shown. This only controls whether the
-    /// Completed section — including already auto-cleared items — is shown below them.
-    var showCompleted: Bool = false
+    /// Multi-select filter over `TodoStatus` — only items whose status is a member
+    /// of this set are shown, split into a Todo / In Progress / Completed section.
+    /// Defaults to Todo + In Progress upstream in `MainContentView.ViewState`.
+    var statusFilter: Set<TodoStatus> = [.todo, .inProgress]
     var onSelect: (TodoItem) -> Void
 
     private var baseItems: [TodoItem] {
@@ -34,23 +35,49 @@ struct TodoListPane: View {
 
     /// Reordering is additionally suspended while a search filter is active, since
     /// the filtered row indices wouldn't line up with `TodoStore.moveItem`'s
-    /// unfiltered active-items group for the list.
-    private var reorderEnabled: Bool { isSingleListView && searchText.isEmpty }
+    /// unfiltered active-items group for the list. The same applies if either Todo
+    /// or In Progress is hidden by `statusFilter`: `TodoStore.moveItem` always
+    /// recomputes its reindex group from *all* non-completed items regardless of
+    /// what's displayed, so hiding one of those statuses would desync the dragged
+    /// row's on-screen index from the store's index.
+    private var reorderEnabled: Bool {
+        isSingleListView && searchText.isEmpty && statusFilter.isSuperset(of: [.todo, .inProgress])
+    }
 
-    private var active: [TodoItem] {
-        let filtered = baseItems.filter { !$0.isCompleted }
+    /// Items matching the selected statuses, before splitting into per-status
+    /// sections below.
+    private var filteredItems: [TodoItem] {
+        baseItems.filter { statusFilter.contains($0.status) }
+    }
+
+    /// Todo + In Progress items (whichever are selected in `statusFilter`),
+    /// ordered the same way the old combined "active" list was: by manual
+    /// `sortOrder` in a single-list view, by recency in the "All" view. Kept as one
+    /// sorted list — rather than sorting `todoItems`/`inProgressItems`
+    /// independently — so drag-to-reorder indices line up with `TodoStore
+    /// .moveItem`'s shared sortOrder group across both statuses.
+    private var nonCompletedSorted: [TodoItem] {
+        let filtered = filteredItems.filter { $0.status != .completed }
         if isSingleListView {
             return filtered.sorted { $0.sortOrder < $1.sortOrder }
         }
         return filtered.sorted { $0.createdAt > $1.createdAt }
     }
 
+    private var todoItems: [TodoItem] {
+        nonCompletedSorted.filter { $0.status == .todo }
+    }
+
+    private var inProgressItems: [TodoItem] {
+        nonCompletedSorted.filter { $0.status == .inProgress }
+    }
+
     /// Completed tasks, whether still within the auto-clear delay window or already
     /// cleared — both are "completed tasks" from the user's perspective and are
-    /// shown/hidden together via `showCompleted`.
-    private var completed: [TodoItem] {
-        baseItems
-            .filter { $0.isCompleted }
+    /// shown/hidden together via `statusFilter`.
+    private var completedItems: [TodoItem] {
+        filteredItems
+            .filter { $0.status == .completed }
             .sorted { lhs, rhs in
                 let lhsDate = lhs.clearedAt ?? lhs.completedAt ?? lhs.createdAt
                 let rhsDate = rhs.clearedAt ?? rhs.completedAt ?? rhs.createdAt
@@ -59,19 +86,31 @@ struct TodoListPane: View {
     }
 
     var body: some View {
-        if active.isEmpty && (!showCompleted || completed.isEmpty) {
+        if todoItems.isEmpty && inProgressItems.isEmpty && completedItems.isEmpty {
             emptyState
         } else {
             ScrollView {
                 LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    ForEach(active) { item in
+                    // Todo — no header, matching the old unlabeled "active" section.
+                    ForEach(todoItems) { item in
                         activeRow(item)
                         Divider()
                     }
 
-                    if showCompleted && !completed.isEmpty {
+                    if !inProgressItems.isEmpty {
                         Section {
-                            ForEach(completed) { item in
+                            ForEach(inProgressItems) { item in
+                                activeRow(item)
+                                Divider()
+                            }
+                        } header: {
+                            sectionHeader("In Progress", count: inProgressItems.count)
+                        }
+                    }
+
+                    if !completedItems.isEmpty {
+                        Section {
+                            ForEach(completedItems) { item in
                                 TodoRowView(
                                     item: item,
                                     onTap: { onSelect(item) },
@@ -80,20 +119,24 @@ struct TodoListPane: View {
                                 Divider()
                             }
                         } header: {
-                            HStack {
-                                Text("Completed · \(completed.count)")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 5)
-                            .background(.regularMaterial)
+                            sectionHeader("Completed", count: completedItems.count)
                         }
                     }
                 }
             }
         }
+    }
+
+    private func sectionHeader(_ title: String, count: Int) -> some View {
+        HStack {
+            Text("\(title) · \(count)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(.regularMaterial)
     }
 
     /// An active row, wrapped with drag-to-reorder support when `reorderEnabled` —
@@ -112,8 +155,8 @@ struct TodoListPane: View {
 
     private func handleDrop(_ droppedIDs: [String], onto item: TodoItem) -> Bool {
         guard let draggedID = droppedIDs.first.flatMap(UUID.init(uuidString:)),
-              let sourceIndex = active.firstIndex(where: { $0.id == draggedID }),
-              let destIndex = active.firstIndex(where: { $0.id == item.id }),
+              let sourceIndex = nonCompletedSorted.firstIndex(where: { $0.id == draggedID }),
+              let destIndex = nonCompletedSorted.firstIndex(where: { $0.id == item.id }),
               sourceIndex != destIndex
         else { return false }
         withAnimation(.spring(duration: 0.25)) {
