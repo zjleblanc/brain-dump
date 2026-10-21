@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.2]
 
 ### Added
 - Three-state todo lifecycle — `TodoStatus` (`Sources/BrainDump/Models/TodoItem.swift`) replaces the plain `isCompleted: Bool` with `todo` / `inProgress` / `completed`; `isCompleted`/`isInProgress` remain as computed properties, and legacy `isCompleted` JSON decodes straight into `status` so existing `data.json` files load unchanged
