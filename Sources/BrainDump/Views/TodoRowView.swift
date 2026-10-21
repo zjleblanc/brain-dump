@@ -59,7 +59,7 @@ struct TodoRowView: View {
         HStack(alignment: .center, spacing: 10) {
             // Checkbox — tapping cycles todo -> in progress -> completed -> todo.
             Button {
-                withAnimation(.spring(duration: 0.2)) {
+                withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
                     store.cycleStatus(item)
                 }
             } label: {
@@ -73,35 +73,42 @@ struct TodoRowView: View {
             .help("Todo \u{2192} In Progress \u{2192} Complete")
 
             // Title + meta
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(item.title)
                     .font(.system(size: 13))
                     .strikethrough(item.isCompleted, color: .secondary)
                     .foregroundStyle(item.isCompleted ? .secondary : .primary)
                     .lineLimit(2)
 
-                if item.isInProgress || !itemTags.isEmpty || item.dueDate != nil {
-                    HStack(spacing: 4) {
-                        if item.isInProgress {
-                            wipBadge
+                // Meta row — always rendered (never inserted/removed) so the WIP
+                // badge appearing/disappearing animates as a smooth height reveal
+                // via `frame(maxHeight:)` + `clipped()`, instead of SwiftUI's
+                // abrupt default insertion transition for conditional views.
+                let showMeta = item.isInProgress || !itemTags.isEmpty || item.dueDate != nil
+                HStack(spacing: 4) {
+                    if item.isInProgress {
+                        wipBadge
+                            .transition(.scale(scale: 0.5, anchor: .leading).combined(with: .opacity))
+                    }
+                    ForEach(itemTags.sorted(by: { $0.name < $1.name })) { tag in
+                        TagBadgeView(tag: tag)
+                    }
+                    if let due = item.dueDate {
+                        HStack(spacing: 3) {
+                            Image(systemName: item.isOverdue ? "exclamationmark.circle.fill" : "calendar")
+                                .font(.system(size: 9))
+                            Text(Self.dueDateFormatter.string(from: due))
+                                .font(.system(size: 10))
                         }
-                        ForEach(itemTags.sorted(by: { $0.name < $1.name })) { tag in
-                            TagBadgeView(tag: tag)
-                        }
-                        if let due = item.dueDate {
-                            HStack(spacing: 3) {
-                                Image(systemName: item.isOverdue ? "exclamationmark.circle.fill" : "calendar")
-                                    .font(.system(size: 9))
-                                Text(Self.dueDateFormatter.string(from: due))
-                                    .font(.system(size: 10))
-                            }
-                            .foregroundStyle(dueDateColor)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(dueDateColor.opacity(0.1)))
-                        }
+                        .foregroundStyle(dueDateColor)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(dueDateColor.opacity(0.1)))
                     }
                 }
+                .padding(.top, showMeta ? 3 : 0)
+                .frame(maxHeight: showMeta ? 300 : 0, alignment: .leading)
+                .clipped()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
