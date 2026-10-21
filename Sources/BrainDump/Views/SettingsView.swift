@@ -11,6 +11,12 @@ struct SettingsView: View {
 
     @StateObject private var vs = ViewState()
 
+    private var appVersionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
+        return "Version \(version) (\(build))"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -32,6 +38,12 @@ struct SettingsView: View {
                             .frame(width: 64, height: 64)
                         Text("BrainDump")
                             .font(.headline)
+                        Text(appVersionString)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Link("View Source", destination: URL(string: "https://github.com/zjleblanc/brain-dump")!)
+                            .font(.caption)
+                            .tint(.accentColor)
                     }
                     Spacer()
                 }

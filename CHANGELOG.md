@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.3]
+
+### Added
+- App version and "View Source" link (pointing to GitHub) in the `SettingsView` header
 
 ### Changed
 - Task color accent bar (`TodoRowView`) now renders as a leading-edge `.overlay` on the row instead of an `HStack` child, so it no longer forces a taller minimum height or shifts content right by its width — rows with and without a color are now the exact same size
