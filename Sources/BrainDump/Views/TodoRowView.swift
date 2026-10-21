@@ -57,13 +57,6 @@ struct TodoRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            // Left color accent bar
-            if let hex = item.colorHex, let color = Color(hex: hex) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(color)
-                    .frame(width: 3, height: 32)
-            }
-
             // Checkbox — tapping cycles todo -> in progress -> completed -> todo.
             Button {
                 withAnimation(.spring(duration: 0.2)) {
@@ -137,6 +130,17 @@ struct TodoRowView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 12)
+        .overlay(alignment: .leading) {
+            // Left color accent bar — an overlay (not an HStack child) so it adds
+            // zero width/height to the row; rows with and without a color stay
+            // the exact same size.
+            if let hex = item.colorHex, let color = Color(hex: hex) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 3)
+                    .padding(.vertical, 4)
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.spring(duration: 0.3)) { onTap?() } }
         .contextMenu {
